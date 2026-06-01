@@ -25,15 +25,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         id: feedback.id,
         comment: feedback.comment,
         rating: feedback.rating,
-        created_at: feedback.createdAt,
+        created_at: feedback.created_at,
         category: feedback.category,
         username: users.username,
-        service_name: services.nameEn
+        service_name: services.name_en
       })
       .from(feedback)
-      .leftJoin(users, eq(feedback.userId, users.id))
-      .leftJoin(services, eq(feedback.serviceId, services.id))
-      .orderBy(desc(feedback.createdAt));
+      .leftJoin(users, eq(feedback.user_id, users.id))
+      .leftJoin(services, eq(feedback.service_id, services.id))
+      .orderBy(desc(feedback.created_at));
       return res.json(rows);
     }
 
@@ -43,8 +43,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Missing required fields: category, comment, and rating.' });
       }
       const [insertResult] = await db.insert(feedback).values({
-        userId: user_id || null,
-        serviceId: service_id || null,
+        user_id: user_id || null,
+        service_id: service_id || null,
         category,
         comment,
         rating: Number(rating)

@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     switch (req.method) {
       case 'GET': {
-        const rows = await db.select().from(waiterCalls).orderBy(desc(waiterCalls.createdAt));
+        const rows = await db.select().from(waiterCalls).orderBy(desc(waiterCalls.created_at));
         return res.json(rows);
       }
 
@@ -30,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { roomNumber } = req.body;
         if (!roomNumber) return res.status(400).json({ error: 'Room number is required.' });
         const [insertResult] = await db.insert(waiterCalls).values({
-          roomNumber
+          room_number: roomNumber
         });
         return res.json({ success: true, call_id: insertResult.insertId });
       }

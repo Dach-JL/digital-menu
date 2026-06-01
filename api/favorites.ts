@@ -25,20 +25,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!userId) return res.status(400).json({ error: 'Missing user_id' });
       const rows = await db.select({
         id: favorites.id,
-        service_id: favorites.serviceId,
-        name_en: services.nameEn,
-        name_am: services.nameAm,
-        name_om: services.nameOm,
-        description_en: services.descriptionEn,
-        description_am: services.descriptionAm,
-        description_om: services.descriptionOm,
+        service_id: favorites.service_id,
+        name_en: services.name_en,
+        name_am: services.name_am,
+        name_om: services.name_om,
+        description_en: services.description_en,
+        description_am: services.description_am,
+        description_om: services.description_om,
         type: services.type,
         price: services.price,
-        image_url: services.imageUrl
+        image_url: services.image_url
       })
       .from(favorites)
-      .innerJoin(services, eq(favorites.serviceId, services.id))
-      .where(eq(favorites.userId, Number(userId)));
+      .innerJoin(services, eq(favorites.service_id, services.id))
+      .where(eq(favorites.user_id, Number(userId)));
       return res.json(rows);
     }
 
@@ -46,8 +46,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { user_id, service_id } = req.body;
       try {
         const [insertResult] = await db.insert(favorites).values({
-          userId: Number(user_id),
-          serviceId: Number(service_id)
+          user_id: Number(user_id),
+          service_id: Number(service_id)
         });
         return res.json({ success: true, id: insertResult.insertId });
       } catch (e: any) {
@@ -59,8 +59,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { user_id, service_id } = req.body;
       await db.delete(favorites).where(
         and(
-          eq(favorites.userId, Number(user_id)),
-          eq(favorites.serviceId, Number(service_id))
+          eq(favorites.user_id, Number(user_id)),
+          eq(favorites.service_id, Number(service_id))
         )
       );
       return res.json({ success: true });

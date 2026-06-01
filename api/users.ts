@@ -72,11 +72,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         email: users.email,
         username: users.username,
         role: users.role,
-        createdAt: users.createdAt
+        created_at: users.created_at
       })
       .from(users)
       .where(inArray(users.role, ['admin', 'admin_room', 'admin_food', 'admin_waiter']))
-      .orderBy(desc(users.createdAt));
+      .orderBy(desc(users.created_at));
       return res.json(rows);
     }
 

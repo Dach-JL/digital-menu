@@ -24,21 +24,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'GET': {
         const rows = await db.select({
           order_id: roomOrders.id,
-          room_number: roomOrders.roomNumber,
-          total_price: roomOrders.totalPrice,
+          room_number: roomOrders.room_number,
+          total_price: roomOrders.total_price,
           status: roomOrders.status,
-          created_at: roomOrders.createdAt,
+          created_at: roomOrders.created_at,
           item_id: orderItems.id,
-          service_id: orderItems.serviceId,
+          service_id: orderItems.service_id,
           quantity: orderItems.quantity,
           price: orderItems.price,
-          name_en: services.nameEn,
-          image_url: services.imageUrl
+          name_en: services.name_en,
+          image_url: services.image_url
         })
         .from(roomOrders)
-        .leftJoin(orderItems, eq(orderItems.orderId, roomOrders.id))
-        .leftJoin(services, eq(services.id, orderItems.serviceId))
-        .orderBy(desc(roomOrders.createdAt));
+        .leftJoin(orderItems, eq(orderItems.order_id, roomOrders.id))
+        .leftJoin(services, eq(services.id, orderItems.service_id))
+        .orderBy(desc(roomOrders.created_at));
 
         // Group the flat query results by order ID
         const ordersMap = new Map();
@@ -80,15 +80,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const [insertResult] = await db.insert(roomOrders).values({
-          roomNumber,
-          totalPrice: String(total_price)
+          room_number: roomNumber,
+          total_price: String(total_price)
         });
         const orderId = insertResult.insertId;
 
         for (const item of items) {
           await db.insert(orderItems).values({
-            orderId,
-            serviceId: item.id,
+            order_id: orderId,
+            service_id: item.id,
             quantity: item.quantity,
             price: String(item.price)
           });

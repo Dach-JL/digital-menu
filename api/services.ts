@@ -25,9 +25,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isAdmin = req.query.admin === '1';
         let rows;
         if (isAdmin) {
-          rows = await db.select().from(services).orderBy(desc(services.createdAt));
+          rows = await db.select().from(services).orderBy(desc(services.created_at));
         } else {
-          rows = await db.select().from(services).where(eq(services.isAvailable, true)).orderBy(desc(services.createdAt));
+          rows = await db.select().from(services).where(eq(services.is_available, true)).orderBy(desc(services.created_at));
         }
         return res.json(rows);
       }
@@ -37,12 +37,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!id) return res.status(400).json({ error: 'Missing ID' });
 
         const updateData: any = {};
-        if (is_available !== undefined) updateData.isAvailable = is_available;
+        if (is_available !== undefined) updateData.is_available = is_available;
         if (subcategory !== undefined) updateData.subcategory = subcategory || null;
-        if (name_am !== undefined) updateData.nameAm = name_am;
-        if (name_om !== undefined) updateData.nameOm = name_om;
-        if (description_am !== undefined) updateData.descriptionAm = description_am;
-        if (description_om !== undefined) updateData.descriptionOm = description_om;
+        if (name_am !== undefined) updateData.name_am = name_am;
+        if (name_om !== undefined) updateData.name_om = name_om;
+        if (description_am !== undefined) updateData.description_am = description_am;
+        if (description_om !== undefined) updateData.description_om = description_om;
 
         if (Object.keys(updateData).length > 0) {
           await db.update(services).set(updateData).where(eq(services.id, id));
@@ -54,24 +54,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { id: updateId, name_en, description_en, name_am, description_am, name_om, description_om, type, subcategory, price, image_url, ingredients, macro_kcal, macro_protein, macro_fat, macro_carbs, beds, max_guests, room_number } = req.body;
 
         const values = {
-          nameEn: name_en,
-          descriptionEn: description_en,
-          nameAm: name_am || null,
-          descriptionAm: description_am || null,
-          nameOm: name_om || null,
-          descriptionOm: description_om || null,
+          name_en,
+          description_en,
+          name_am: name_am || null,
+          description_am: description_am || null,
+          name_om: name_om || null,
+          description_om: description_om || null,
           type,
           subcategory: subcategory || null,
           price: String(price),
-          imageUrl: image_url || null,
+          image_url: image_url || null,
           ingredients: ingredients || null,
-          macroKcal: macro_kcal ? String(macro_kcal) : null,
-          macroProtein: macro_protein ? String(macro_protein) : null,
-          macroFat: macro_fat ? String(macro_fat) : null,
-          macroCarbs: macro_carbs ? String(macro_carbs) : null,
+          macro_kcal: macro_kcal ? String(macro_kcal) : null,
+          macro_protein: macro_protein ? String(macro_protein) : null,
+          macro_fat: macro_fat ? String(macro_fat) : null,
+          macro_carbs: macro_carbs ? String(macro_carbs) : null,
           beds: beds !== undefined && beds !== '' ? Number(beds) : null,
-          maxGuests: max_guests !== undefined && max_guests !== '' ? Number(max_guests) : null,
-          roomNumber: room_number || null,
+          max_guests: max_guests !== undefined && max_guests !== '' ? Number(max_guests) : null,
+          room_number: room_number || null,
         };
 
         if (updateId) {
@@ -91,7 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { id: deleteId } = req.body;
         if (!deleteId) return res.status(400).json({ error: 'Missing service ID' });
         // Delete related order items first to prevent foreign key violations
-        await db.delete(orderItems).where(eq(orderItems.serviceId, deleteId));
+        await db.delete(orderItems).where(eq(orderItems.service_id, deleteId));
         await db.delete(services).where(eq(services.id, deleteId));
         return res.json({ success: true });
       }
