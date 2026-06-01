@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getDb } from './_db';
-import { favorites, services } from './_schema';
+import { getDb } from './_db.js';
+import { favorites, services } from './_schema.js';
 import { eq, and } from 'drizzle-orm';
 
 const corsHeaders: Record<string, string> = {
