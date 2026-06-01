@@ -1,7 +1,11 @@
 <?php
 require_once 'db.php';
 
-echo "Testing connection to Neon Postgres...\n";
+$db_url = getenv('DATABASE_URL') ?: ($_ENV['DATABASE_URL'] ?? '');
+$parsed = parse_url($db_url);
+$scheme = $parsed['scheme'] ?? 'pgsql';
+
+echo "Testing connection to Database ($scheme)...\n";
 
 try {
     // 1. Check connection
@@ -10,16 +14,22 @@ try {
     echo "Connected successfully to: " . $version . "\n";
 
     // 2. Check if users table exists
-    $stmt = $pdo->query("SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE  table_schema = 'public'
-        AND    table_name   = 'users'
-    )");
-    $tableExists = $stmt->fetchColumn();
+    if ($scheme === 'mysql') {
+        $stmt = $pdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'users'");
+        $tableExists = $stmt->fetchColumn() > 0;
+    } else {
+        $stmt = $pdo->query("SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE  table_schema = 'public'
+            AND    table_name   = 'users'
+        )");
+        $tableExists = $stmt->fetchColumn();
+    }
 
     if (!$tableExists) {
         echo "Users table does not exist. Applying schema...\n";
-        $sql = file_get_contents('neon_schema.sql');
+        $schemaFile = ($scheme === 'mysql') ? 'mysql_schema.sql' : 'neon_schema.sql';
+        $sql = file_get_contents($schemaFile);
         $pdo->exec($sql);
         echo "Schema applied successfully.\n";
     } else {

@@ -59,7 +59,7 @@ if ($action === 'register') {
     try {
         $stmt = $pdo->prepare('INSERT INTO users (email, username, password, role) VALUES (?, ?, ?, ?)');
         $stmt->execute([$email, $username, $hash, $role]);
-        $userId = $pdo->lastInsertId('users_id_seq');
+        $userId = $pdo->lastInsertId();
 
         echo json_encode([
             'success' => true,
@@ -125,7 +125,7 @@ if ($action === 'create_admin') {
     try {
         $stmt = $pdo->prepare('INSERT INTO users (email, username, password, role) VALUES (?, ?, ?, ?)');
         $stmt->execute([$email, $username, $hash, $role]);
-        $userId = $pdo->lastInsertId('users_id_seq');
+        $userId = $pdo->lastInsertId();
 
         echo json_encode([
             'success' => true,

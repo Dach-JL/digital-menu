@@ -1,8 +1,31 @@
-import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/mysql2';
+import mysql from 'mysql2/promise';
+import * as schema from './_schema';
+
+let pool: any = null;
+let db: any = null;
 
 export function getDb() {
-  const sql = neon(process.env.DATABASE_URL!);
-  return sql;
+  if (!pool) {
+    pool = mysql.createPool({
+      uri: process.env.DATABASE_URL,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+      ssl: {
+        rejectUnauthorized: false
+      }
+    });
+    db = drizzle(pool, { schema, mode: 'default' });
+  }
+  return db!;
+}
+
+export function getPool() {
+  if (!pool) {
+    getDb();
+  }
+  return pool!;
 }
 
 export function corsHeaders() {

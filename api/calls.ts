@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { neon } from '@neondatabase/serverless';
+import { getDb } from './_db';
+import { waiterCalls } from './_schema';
+import { eq, desc } from 'drizzle-orm';
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -15,26 +17,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(204).end();
 
-  const sql = neon(process.env.DATABASE_URL!);
+  const db = getDb();
 
   try {
     switch (req.method) {
       case 'GET': {
-        const rows = await sql`SELECT * FROM waiter_calls ORDER BY created_at DESC`;
+        const rows = await db.select().from(waiterCalls).orderBy(desc(waiterCalls.createdAt));
         return res.json(rows);
       }
 
       case 'POST': {
         const { roomNumber } = req.body;
         if (!roomNumber) return res.status(400).json({ error: 'Room number is required.' });
-        const result = await sql`INSERT INTO waiter_calls (room_number) VALUES (${roomNumber}) RETURNING id`;
-        return res.json({ success: true, call_id: result[0].id });
+        const [insertResult] = await db.insert(waiterCalls).values({
+          roomNumber
+        });
+        return res.json({ success: true, call_id: insertResult.insertId });
       }
 
       case 'PATCH': {
         const { id, status } = req.body;
         if (!id || !status) return res.status(400).json({ error: 'Missing call ID or status.' });
-        await sql`UPDATE waiter_calls SET status = ${status} WHERE id = ${id}`;
+        await db.update(waiterCalls).set({ status }).where(eq(waiterCalls.id, id));
         return res.json({ success: true });
       }
 

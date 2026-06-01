@@ -36,7 +36,7 @@ switch ($method) {
         try {
             $stmt = $pdo->prepare('INSERT INTO waiter_calls (room_number) VALUES (?)');
             $stmt->execute([$data['roomNumber']]);
-            $callId = $pdo->lastInsertId('waiter_calls_id_seq');
+            $callId = $pdo->lastInsertId();
             echo json_encode(['success' => true, 'call_id' => $callId]);
         } catch (PDOException $e) {
             http_response_code(500);

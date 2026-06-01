@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { neon } from '@neondatabase/serverless';
+import { getDb } from './_db';
+import { services, orderItems } from './_schema';
+import { eq, desc } from 'drizzle-orm';
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -15,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(204).end();
 
-  const sql = neon(process.env.DATABASE_URL!);
+  const db = getDb();
 
   try {
     switch (req.method) {
@@ -23,9 +25,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isAdmin = req.query.admin === '1';
         let rows;
         if (isAdmin) {
-          rows = await sql`SELECT id, name_en, name_am, name_om, description_en, description_am, description_om, type, subcategory, price, image_url, ingredients, macro_kcal, macro_protein, macro_fat, macro_carbs, beds, max_guests, room_number, is_available, created_at FROM services ORDER BY created_at DESC`;
+          rows = await db.select().from(services).orderBy(desc(services.createdAt));
         } else {
-          rows = await sql`SELECT id, name_en, name_am, name_om, description_en, description_am, description_om, type, subcategory, price, image_url, ingredients, macro_kcal, macro_protein, macro_fat, macro_carbs, beds, max_guests, room_number, created_at FROM services WHERE is_available = TRUE ORDER BY created_at DESC`;
+          rows = await db.select().from(services).where(eq(services.isAvailable, true)).orderBy(desc(services.createdAt));
         }
         return res.json(rows);
       }
@@ -34,23 +36,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { id, is_available, name_am, name_om, description_am, description_om, subcategory } = req.body;
         if (!id) return res.status(400).json({ error: 'Missing ID' });
 
-        if (is_available !== undefined) {
-          await sql`UPDATE services SET is_available = ${is_available} WHERE id = ${id}`;
-        }
-        if (subcategory !== undefined) {
-          await sql`UPDATE services SET subcategory = ${subcategory || null} WHERE id = ${id}`;
-        }
-        if (name_am !== undefined) {
-          await sql`UPDATE services SET name_am = ${name_am} WHERE id = ${id}`;
-        }
-        if (name_om !== undefined) {
-          await sql`UPDATE services SET name_om = ${name_om} WHERE id = ${id}`;
-        }
-        if (description_am !== undefined) {
-          await sql`UPDATE services SET description_am = ${description_am} WHERE id = ${id}`;
-        }
-        if (description_om !== undefined) {
-          await sql`UPDATE services SET description_om = ${description_om} WHERE id = ${id}`;
+        const updateData: any = {};
+        if (is_available !== undefined) updateData.isAvailable = is_available;
+        if (subcategory !== undefined) updateData.subcategory = subcategory || null;
+        if (name_am !== undefined) updateData.nameAm = name_am;
+        if (name_om !== undefined) updateData.nameOm = name_om;
+        if (description_am !== undefined) updateData.descriptionAm = description_am;
+        if (description_om !== undefined) updateData.descriptionOm = description_om;
+
+        if (Object.keys(updateData).length > 0) {
+          await db.update(services).set(updateData).where(eq(services.id, id));
         }
         return res.json({ success: true });
       }
@@ -58,14 +53,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'POST': {
         const { id: updateId, name_en, description_en, name_am, description_am, name_om, description_om, type, subcategory, price, image_url, ingredients, macro_kcal, macro_protein, macro_fat, macro_carbs, beds, max_guests, room_number } = req.body;
 
+        const values = {
+          nameEn: name_en,
+          descriptionEn: description_en,
+          nameAm: name_am || null,
+          descriptionAm: description_am || null,
+          nameOm: name_om || null,
+          descriptionOm: description_om || null,
+          type,
+          subcategory: subcategory || null,
+          price: String(price),
+          imageUrl: image_url || null,
+          ingredients: ingredients || null,
+          macroKcal: macro_kcal ? String(macro_kcal) : null,
+          macroProtein: macro_protein ? String(macro_protein) : null,
+          macroFat: macro_fat ? String(macro_fat) : null,
+          macroCarbs: macro_carbs ? String(macro_carbs) : null,
+          beds: beds !== undefined && beds !== '' ? Number(beds) : null,
+          maxGuests: max_guests !== undefined && max_guests !== '' ? Number(max_guests) : null,
+          roomNumber: room_number || null,
+        };
+
         if (updateId) {
           // Update
-          await sql`UPDATE services SET name_en=${name_en}, description_en=${description_en}, name_am=${name_am||null}, description_am=${description_am||null}, name_om=${name_om||null}, description_om=${description_om||null}, type=${type}, subcategory=${subcategory||null}, price=${price}, image_url=${image_url||null}, ingredients=${ingredients||null}, macro_kcal=${macro_kcal||null}, macro_protein=${macro_protein||null}, macro_fat=${macro_fat||null}, macro_carbs=${macro_carbs||null}, beds=${beds||null}, max_guests=${max_guests||null}, room_number=${room_number||null} WHERE id=${updateId}`;
+          await db.update(services).set(values).where(eq(services.id, updateId));
           return res.json({ success: true });
         } else {
           // Create
-          const result = await sql`INSERT INTO services (name_en, description_en, name_am, description_am, name_om, description_om, type, subcategory, price, image_url, ingredients, macro_kcal, macro_protein, macro_fat, macro_carbs, beds, max_guests, room_number) VALUES (${name_en}, ${description_en}, ${name_am||null}, ${description_am||null}, ${name_om||null}, ${description_om||null}, ${type}, ${subcategory||null}, ${price}, ${image_url||null}, ${ingredients||null}, ${macro_kcal||null}, ${macro_protein||null}, ${macro_fat||null}, ${macro_carbs||null}, ${beds||null}, ${max_guests||null}, ${room_number||null}) RETURNING *`;
-          return res.json({ success: true, service: result[0] });
+          const [insertResult] = await db.insert(services).values(values);
+          const insertId = insertResult.insertId;
+          const rows = await db.select().from(services).where(eq(services.id, insertId));
+          return res.json({ success: true, service: rows[0] });
         }
       }
 
@@ -73,8 +91,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { id: deleteId } = req.body;
         if (!deleteId) return res.status(400).json({ error: 'Missing service ID' });
         // Delete related order items first to prevent foreign key violations
-        await sql`DELETE FROM order_items WHERE service_id = ${deleteId}`;
-        await sql`DELETE FROM services WHERE id = ${deleteId}`;
+        await db.delete(orderItems).where(eq(orderItems.serviceId, deleteId));
+        await db.delete(services).where(eq(services.id, deleteId));
         return res.json({ success: true });
       }
 

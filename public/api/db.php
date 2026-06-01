@@ -17,7 +17,7 @@ if (file_exists($envFile)) {
     }
 }
 
-// Parse the Neon Postgres connection URL
+// Parse the connection URL (supports both mysql:// and postgres:// / pgsql://)
 $db_url = getenv('DATABASE_URL') ?: ($_ENV['DATABASE_URL'] ?? '');
 if (empty($db_url)) {
     http_response_code(500);
@@ -26,14 +26,18 @@ if (empty($db_url)) {
 }
 
 $parsed = parse_url($db_url);
+$scheme = $parsed['scheme'] ?? 'pgsql';
 $host = $parsed['host'] ?? '';
-$port = $parsed['port'] ?? 5432;
+$port = $parsed['port'] ?? ($scheme === 'mysql' ? 3306 : 5432);
 $dbname = ltrim($parsed['path'] ?? '', '/');
 $user = $parsed['user'] ?? '';
 $pass = $parsed['pass'] ?? '';
 
-// For some Neon strings, query parameters like sslmode might be needed
-$dsn = "pgsql:host=$host;port=$port;dbname=$dbname;sslmode=require";
+if ($scheme === 'mysql') {
+    $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
+} else {
+    $dsn = "pgsql:host=$host;port=$port;dbname=$dbname;sslmode=require";
+}
 
 $options = [
     PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,

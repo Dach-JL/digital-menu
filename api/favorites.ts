@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { neon } from '@neondatabase/serverless';
+import { getDb } from './_db';
+import { favorites, services } from './_schema';
+import { eq, and } from 'drizzle-orm';
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -15,24 +17,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(204).end();
 
-  const sql = neon(process.env.DATABASE_URL!);
+  const db = getDb();
 
   try {
     if (req.method === 'GET') {
       const userId = req.query.user_id;
       if (!userId) return res.status(400).json({ error: 'Missing user_id' });
-      const rows = await sql`
-        SELECT f.id, f.service_id, s.name_en, s.name_am, s.name_om, s.description_en, s.description_am, s.description_om, s.type, s.price, s.image_url
-        FROM favorites f JOIN services s ON f.service_id = s.id
-        WHERE f.user_id = ${userId}`;
+      const rows = await db.select({
+        id: favorites.id,
+        service_id: favorites.serviceId,
+        name_en: services.nameEn,
+        name_am: services.nameAm,
+        name_om: services.nameOm,
+        description_en: services.descriptionEn,
+        description_am: services.descriptionAm,
+        description_om: services.descriptionOm,
+        type: services.type,
+        price: services.price,
+        image_url: services.imageUrl
+      })
+      .from(favorites)
+      .innerJoin(services, eq(favorites.serviceId, services.id))
+      .where(eq(favorites.userId, Number(userId)));
       return res.json(rows);
     }
 
     if (req.method === 'POST') {
       const { user_id, service_id } = req.body;
       try {
-        const result = await sql`INSERT INTO favorites (user_id, service_id) VALUES (${user_id}, ${service_id}) RETURNING id`;
-        return res.json({ success: true, id: result[0].id });
+        const [insertResult] = await db.insert(favorites).values({
+          userId: Number(user_id),
+          serviceId: Number(service_id)
+        });
+        return res.json({ success: true, id: insertResult.insertId });
       } catch (e: any) {
         return res.status(409).json({ error: 'Already favorited' });
       }
@@ -40,7 +57,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'DELETE') {
       const { user_id, service_id } = req.body;
-      await sql`DELETE FROM favorites WHERE user_id = ${user_id} AND service_id = ${service_id}`;
+      await db.delete(favorites).where(
+        and(
+          eq(favorites.userId, Number(user_id)),
+          eq(favorites.serviceId, Number(service_id))
+        )
+      );
       return res.json({ success: true });
     }
 

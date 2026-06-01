@@ -56,7 +56,7 @@ switch ($method) {
 
             $stmt = $pdo->prepare('INSERT INTO room_orders (room_number, total_price) VALUES (?, ?)');
             $stmt->execute([$data['roomNumber'], $total_price]);
-            $orderId = $pdo->lastInsertId('room_orders_id_seq');
+            $orderId = $pdo->lastInsertId();
 
             $itemStmt = $pdo->prepare('INSERT INTO order_items (order_id, service_id, quantity, price) VALUES (?, ?, ?, ?)');
             foreach ($data['items'] as $item) {

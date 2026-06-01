@@ -45,7 +45,7 @@ if ($method === 'POST') {
     $stmt = $pdo->prepare('INSERT INTO favorites (user_id, service_id) VALUES (?, ?)');
     try {
         $stmt->execute([$data['user_id'], $data['service_id']]);
-        echo json_encode(['success' => true, 'id' => $pdo->lastInsertId('favorites_id_seq')]);
+        echo json_encode(['success' => true, 'id' => $pdo->lastInsertId()]);
     } catch (PDOException $e) {
         http_response_code(409);
         echo json_encode(['error' => 'Already favorited']);

@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { neon } from '@neondatabase/serverless';
+import { getDb } from './_db';
+import { users } from './_schema';
+import { eq, inArray, desc } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 
 const corsHeaders: Record<string, string> = {
@@ -16,7 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(204).end();
 
-  const sql = neon(process.env.DATABASE_URL!);
+  const db = getDb();
   const action = req.query.action as string;
 
   try {
@@ -25,8 +27,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { email, password } = req.body;
       if (!email || !password) return res.status(400).json({ error: 'Missing fields' });
 
-      const users = await sql`SELECT * FROM users WHERE email = ${email}`;
-      const user = users[0];
+      const rows = await db.select().from(users).where(eq(users.email, email));
+      const user = rows[0];
       if (user && await bcrypt.compare(password, user.password)) {
         const { password: _, ...safeUser } = user;
         return res.json({ success: true, user: safeUser });
@@ -41,8 +43,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const hash = await bcrypt.hash(password, 10);
       try {
-        const result = await sql`INSERT INTO users (email, username, password, role) VALUES (${email}, ${username}, ${hash}, 'user') RETURNING id, email, username, role`;
-        return res.json({ success: true, user: result[0] });
+        const [insertResult] = await db.insert(users).values({
+          email,
+          username,
+          password: hash,
+          role: 'user'
+        });
+        const insertId = insertResult.insertId;
+        const rows = await db.select({
+          id: users.id,
+          email: users.email,
+          username: users.username,
+          role: users.role
+        }).from(users).where(eq(users.id, insertId));
+        return res.json({ success: true, user: rows[0] });
       } catch (e: any) {
         if (e.message?.includes('unique') || e.message?.includes('duplicate')) {
           return res.status(409).json({ error: 'Email or username already exists.' });
@@ -53,7 +67,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // LIST ADMINS
     if (action === 'list_admins') {
-      const rows = await sql`SELECT id, email, username, role, created_at FROM users WHERE role IN ('admin', 'admin_room', 'admin_food', 'admin_waiter') ORDER BY created_at DESC`;
+      const rows = await db.select({
+        id: users.id,
+        email: users.email,
+        username: users.username,
+        role: users.role,
+        createdAt: users.createdAt
+      })
+      .from(users)
+      .where(inArray(users.role, ['admin', 'admin_room', 'admin_food', 'admin_waiter']))
+      .orderBy(desc(users.createdAt));
       return res.json(rows);
     }
 
@@ -67,8 +90,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const hash = await bcrypt.hash(password, 10);
       try {
-        const result = await sql`INSERT INTO users (email, username, password, role) VALUES (${email}, ${username}, ${hash}, ${role}) RETURNING id, email, username, role`;
-        return res.json({ success: true, admin: result[0] });
+        const [insertResult] = await db.insert(users).values({
+          email,
+          username,
+          password: hash,
+          role
+        });
+        const insertId = insertResult.insertId;
+        const rows = await db.select({
+          id: users.id,
+          email: users.email,
+          username: users.username,
+          role: users.role
+        }).from(users).where(eq(users.id, insertId));
+        return res.json({ success: true, admin: rows[0] });
       } catch (e: any) {
         if (e.message?.includes('unique') || e.message?.includes('duplicate')) {
           return res.status(409).json({ error: 'Email or username already exists.' });
@@ -81,7 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (action === 'delete_admin') {
       const { id } = req.body;
       if (!id) return res.status(400).json({ error: 'Missing admin ID' });
-      await sql`DELETE FROM users WHERE id = ${id}`;
+      await db.delete(users).where(eq(users.id, id));
       return res.json({ success: true });
     }
 

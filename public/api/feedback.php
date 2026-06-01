@@ -53,7 +53,7 @@ if ($method === 'POST') {
     try {
         $stmt = $pdo->prepare('INSERT INTO feedback (user_id, service_id, category, comment, rating) VALUES (?, ?, ?, ?, ?)');
         $stmt->execute([$user_id, $service_id, $category, $comment, $rating]);
-        echo json_encode(['success' => true, 'id' => $pdo->lastInsertId('feedback_id_seq')]);
+        echo json_encode(['success' => true, 'id' => $pdo->lastInsertId()]);
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);

@@ -65,7 +65,7 @@ switch ($method) {
                 $update_parts[] = "$key = ?";
                 // Cast is_available to proper boolean for postgres
                 if ($key === 'is_available') {
-                    $params[] = $value ? 't' : 'f';
+                    $params[] = $value ? 1 : 0;
                 } else {
                     $params[] = $value;
                 }
@@ -179,7 +179,7 @@ switch ($method) {
             try {
                 $stmt = $pdo->prepare('INSERT INTO services (name_en, description_en, name_am, description_am, name_om, description_om, type, subcategory, price, image_url, ingredients, macro_kcal, macro_protein, macro_fat, macro_carbs, beds, max_guests, room_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
                 $stmt->execute([$name_en, $description_en, $name_am, $description_am, $name_om, $description_om, $type, $subcategory, $price, $image_url, $ingredients, $macro_kcal, $macro_protein, $macro_fat, $macro_carbs, $beds, $max_guests, $room_number]);
-                $newServiceId = $pdo->lastInsertId('services_id_seq');
+                $newServiceId = $pdo->lastInsertId();
                 $selectStmt = $pdo->prepare('SELECT * FROM services WHERE id = ?');
                 $selectStmt->execute([$newServiceId]);
                 $newService = $selectStmt->fetch();
