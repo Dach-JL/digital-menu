@@ -119,20 +119,16 @@ export const ProductList: React.FC<ProductListProps> = ({
     return true;
   });
 
-  if (filters) {
-    filteredProducts.sort((a, b) => {
-      const priceA = parseFloat(a.price.toString().replace(/[^0-9.]/g, '')) || 0;
-      const priceB = parseFloat(b.price.toString().replace(/[^0-9.]/g, '')) || 0;
-      
-      if (filters.sortBy === 'price_asc') {
-        return priceA - priceB;
-      }
-      if (filters.sortBy === 'price_desc') {
-        return priceB - priceA;
-      }
-      return 0; // recommended
-    });
-  }
+  // Sort into a NEW array so React sees the change and subcategory grouping
+  // is bypassed when a price sort is active (groups lock in the original order).
+  const isSorted = filters && filters.sortBy !== 'recommended';
+  const sortedProducts = isSorted
+    ? [...filteredProducts].sort((a, b) => {
+        const priceA = parseFloat(a.price.toString().replace(/[^0-9.]/g, '')) || 0;
+        const priceB = parseFloat(b.price.toString().replace(/[^0-9.]/g, '')) || 0;
+        return filters.sortBy === 'price_asc' ? priceA - priceB : priceB - priceA;
+      })
+    : filteredProducts;
 
   if (isLoading)
     return <div className="text-center py-8 text-muted-foreground">{t('messages.loading')}</div>;
@@ -144,52 +140,49 @@ export const ProductList: React.FC<ProductListProps> = ({
   else if (activeCategory === 'drink') subcategoriesToDisplay = [...drinkSubcategories, "Other"];
   else if (activeCategory === 'all') subcategoriesToDisplay = [...foodSubcategories, ...drinkSubcategories, "Other"];
 
+  // When price sort is active, render flat grid so the sort order is visible
+  // (subcategory groups override sort order and would hide any changes)
+  const showFlatGrid = isSorted || !['all', 'food', 'drink'].includes(activeCategory);
+
+  const renderFlatGrid = (items: typeof sortedProducts) => (
+    <div className="grid grid-cols-2 gap-3 items-start">
+      <div className="flex flex-col gap-3">
+        {items.filter((_, index) => index % 2 === 0).map((product, i) => (
+          <ProductCard key={product.id} product={product} onFavoriteToggle={onFavoriteToggle} index={i * 2} />
+        ))}
+      </div>
+      <div className="flex flex-col gap-3">
+        {items.filter((_, index) => index % 2 === 1).map((product, i) => (
+          <ProductCard key={product.id} product={product} onFavoriteToggle={onFavoriteToggle} index={i * 2 + 1} />
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <section
       className="w-full mt-3"
       aria-label="Product list"
     >
-      {['all', 'food', 'drink'].includes(activeCategory) ? (
+      {showFlatGrid ? (
+        renderFlatGrid(sortedProducts)
+      ) : (
         <div className="w-full">
           {subcategoriesToDisplay.map(subCategoryName => {
-            const groupProducts = filteredProducts.filter(p => (p.subcategory || "Other") === subCategoryName);
+            const groupProducts = sortedProducts.filter(p => (p.subcategory || "Other") === subCategoryName);
             if (!groupProducts || groupProducts.length === 0) return null;
             return <SubcategoryGroup key={subCategoryName} title={subCategoryName} products={groupProducts} onFavoriteToggle={onFavoriteToggle} />;
           })}
-          {/* Output any unaccounted categories just in case */}
-          {Array.from(new Set(filteredProducts.map(p => p.subcategory || 'Other')))
+          {Array.from(new Set(sortedProducts.map(p => p.subcategory || 'Other')))
                .filter(k => !subcategoriesToDisplay.includes(k))
                .map(subCategoryName => {
-                 const groupProducts = filteredProducts.filter(p => (p.subcategory || "Other") === subCategoryName);
+                 const groupProducts = sortedProducts.filter(p => (p.subcategory || "Other") === subCategoryName);
                  return <SubcategoryGroup key={subCategoryName} title={subCategoryName} products={groupProducts} onFavoriteToggle={onFavoriteToggle} />;
           })}
         </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 items-start">
-          <div className="flex flex-col gap-3">
-            {filteredProducts.filter((_, index) => index % 2 === 0).map((product, i) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onFavoriteToggle={onFavoriteToggle}
-                index={i * 2}
-              />
-            ))}
-          </div>
-          <div className="flex flex-col gap-3">
-            {filteredProducts.filter((_, index) => index % 2 === 1).map((product, i) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onFavoriteToggle={onFavoriteToggle}
-                index={i * 2 + 1}
-              />
-            ))}
-          </div>
-        </div>
       )}
-      
-      {filteredProducts.length === 0 && !isLoading && (
+
+      {sortedProducts.length === 0 && !isLoading && (
         <div className="text-center py-12 text-muted-foreground">
           <p>{t('messages.no_products')}</p>
         </div>
