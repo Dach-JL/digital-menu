@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiUrl, uploadsUrl } from '@/config/api';
 import { useParams, useNavigate } from 'react-router-dom';
+import { getCachedProducts } from '@/lib/pageCache';
 import { useTranslation } from 'react-i18next';
 import { useUser } from '@/contexts/UserContext';
 import { Heart, ChevronLeft, Check, Plus, Minus, Info, Bed, Sofa, Utensils, Zap, Users, Maximize } from 'lucide-react';
@@ -46,6 +47,31 @@ export const ProductDetail = () => {
   useEffect(() => {
     const fetchProductDetails = async () => {
       if (!id) return;
+
+      // ── 1. Try to serve from the in-memory cache immediately ──
+      const cached = getCachedProducts();
+      const cachedProduct = cached?.find((s) => String(s.id) === String(id));
+      if (cachedProduct) {
+        setProduct(cachedProduct);
+        if (cachedProduct.ingredients) {
+          try { setIngredients(JSON.parse(cachedProduct.ingredients)); } catch { setIngredients([]); }
+        }
+        // Still check favorites in the background, but don't show a spinner
+        if (user) {
+          fetch(apiUrl(`/favorites.php?user_id=${user.id}`))
+            .then(r => r.ok ? r.json() : [])
+            .then((favoritesData: any[]) => {
+              if (Array.isArray(favoritesData)) {
+                setIsFavorited(favoritesData.some((fav) => String(fav.service_id) === String(id)));
+              }
+            })
+            .catch(() => {});
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      // ── 2. Cache miss — fetch from network (e.g. direct URL / deep link) ──
       setIsLoading(true);
       try {
         const [servicesRes, favoritesRes] = await Promise.all([
@@ -55,9 +81,11 @@ export const ProductDetail = () => {
 
         if (!servicesRes.ok) throw new Error('Failed to fetch services');
         const servicesData = await servicesRes.json();
-        const foundProduct = Array.isArray(servicesData) ? servicesData.find((s: any) => String(s.id) === String(id)) : servicesData;
+        const foundProduct = Array.isArray(servicesData)
+          ? servicesData.find((s: any) => String(s.id) === String(id))
+          : servicesData;
 
-        if (!foundProduct) throw new Error("Product not found");
+        if (!foundProduct) throw new Error('Product not found');
 
         let isFav = false;
         if (favoritesRes && favoritesRes.ok) {
@@ -70,12 +98,11 @@ export const ProductDetail = () => {
         setProduct(foundProduct);
         setIsFavorited(isFav);
         if (foundProduct.ingredients) {
-            try { setIngredients(JSON.parse(foundProduct.ingredients)); } catch (e) { setIngredients([]); }
+          try { setIngredients(JSON.parse(foundProduct.ingredients)); } catch { setIngredients([]); }
         }
-
       } catch (err: any) {
-        console.error("ProductDetail Error:", err);
-        toast.error(err.message || "Failed to load product details.");
+        console.error('ProductDetail Error:', err);
+        toast.error(err.message || 'Failed to load product details.');
       } finally {
         setIsLoading(false);
       }

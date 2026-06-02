@@ -6,6 +6,7 @@ import { useUser } from '@/contexts/UserContext';
 import { Heart } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Product } from '@/types/Product';
+import { getCachedFavorites, setCachedFavorites } from '@/lib/pageCache';
 
 const Favorites = () => {
   const { user } = useUser();
@@ -14,12 +15,12 @@ const Favorites = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const fetchFavorites = useCallback(async () => {
+  const fetchFavorites = useCallback(async (silent = false) => {
     if (!user) {
       setIsLoading(false);
       return;
     }
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
     setError('');
     try {
       const res = await fetch(apiUrl(`/favorites.php?user_id=${user.id}`));
@@ -33,21 +34,31 @@ const Favorites = () => {
         id: fav.service_id,
         isFavoritedInitially: true,
         rating: fav.rating || 5,
-        reviewCount: fav.reviewCount || "0",
-        image: fav.image_url || "/placeholder.svg",
+        reviewCount: fav.reviewCount || '0',
+        image: fav.image_url || '/placeholder.svg',
       }));
+      setCachedFavorites(user.id, mappedFavorites);
       setFavorites(mappedFavorites);
-
     } catch (e: any) {
-      setError(e.message);
+      if (!silent) setError(e.message);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
-    fetchFavorites();
-  }, [fetchFavorites]);
+    if (!user) { setIsLoading(false); return; }
+    const cached = getCachedFavorites(user.id);
+    if (cached) {
+      // Show cached data immediately — no spinner
+      setFavorites(cached);
+      setIsLoading(false);
+      // Silently refresh in the background
+      fetchFavorites(true);
+    } else {
+      fetchFavorites(false);
+    }
+  }, [user]);
 
   if (!user) {
     return (
