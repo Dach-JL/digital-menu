@@ -20,4 +20,10 @@ export interface Product {
   max_guests?: number;
   room_number?: string;
   subcategory?: string | null;
+  ingredients?: string | null;
+  macro_kcal?: string | number | null;
+  macro_protein?: string | number | null;
+  macro_fat?: string | number | null;
+  macro_carbs?: string | number | null;
+  is_available?: boolean;
 }
