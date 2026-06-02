@@ -35,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         description_om TEXT,
         type VARCHAR(50) NOT NULL,
         price DECIMAL(10,2) NOT NULL,
-        image_url TEXT,
+        image_url MEDIUMTEXT,
         ingredients TEXT,
         macro_kcal DECIMAL(10,2),
         macro_protein DECIMAL(10,2),
@@ -47,6 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         room_number VARCHAR(50),
         subcategory VARCHAR(255),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
       )
     `);
 

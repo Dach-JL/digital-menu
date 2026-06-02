@@ -1,4 +1,4 @@
-import { mysqlTable, int, varchar, text, decimal, boolean, timestamp } from 'drizzle-orm/mysql-core';
+import { mysqlTable, int, varchar, text, mediumtext, decimal, boolean, timestamp } from 'drizzle-orm/mysql-core';
 
 export const users = mysqlTable('users', {
   id: int('id').autoincrement().primaryKey(),
@@ -19,7 +19,7 @@ export const services = mysqlTable('services', {
   description_om: text('description_om'),
   type: varchar('type', { length: 50 }).notNull(),
   price: decimal('price', { precision: 10, scale: 2 }).notNull(),
-  image_url: text('image_url'),
+  image_url: mediumtext('image_url'),
   ingredients: text('ingredients'),
   macro_kcal: decimal('macro_kcal', { precision: 10, scale: 2 }),
   macro_protein: decimal('macro_protein', { precision: 10, scale: 2 }),
