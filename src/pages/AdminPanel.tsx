@@ -20,6 +20,12 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { foodSubcategories, drinkSubcategories } from "@/constants/categories";
+import {
+  getCachedAdminServices, setCachedAdminServices, invalidateCachedAdminServices,
+  getCachedAdminFeedback, setCachedAdminFeedback,
+  getCachedAdminOrders, setCachedAdminOrders,
+  getCachedAdminCalls, setCachedAdminCalls,
+} from '@/lib/pageCache';
 
 // Updated Service type
 interface Service {
@@ -146,50 +152,58 @@ const AdminPanel = () => {
   }, [user, navigate]);
 
 
-  const fetchServices = async () => {
-    setLoading(true);
+  const fetchServices = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
-      // Admin fetches with ?admin=1 to see unavailable items too
       const res = await fetch(apiUrl("/services.php?admin=1"));
       if (!res.ok) throw new Error("Failed to fetch services data.");
       const data = await res.json();
-      if(data.error) throw new Error(data.error);
+      if (data.error) throw new Error(data.error);
+      setCachedAdminServices(data);
       setServices(data);
     } catch (e: any) {
-      setError(e.message);
+      if (!silent) setError(e.message);
     }
-    setLoading(false);
+    if (!silent) setLoading(false);
   };
   
-  const fetchFeedback = async () => {
-    setFeedbackLoading(true);
+  const fetchFeedback = async (silent = false) => {
+    if (!silent) setFeedbackLoading(true);
     setFeedbackError("");
     try {
       const res = await fetch(apiUrl("/feedback.php"));
       if (!res.ok) throw new Error("Could not fetch feedback.");
       const data = await res.json();
       if (data.error) throw new Error(data.error);
+      setCachedAdminFeedback(data);
       setFeedback(data);
     } catch (e: any) {
-      setFeedbackError(e.message);
+      if (!silent) setFeedbackError(e.message);
     }
-    setFeedbackLoading(false);
+    if (!silent) setFeedbackLoading(false);
   };
 
-  const fetchRoomData = async () => {
-    setRoomLoading(true);
+  const fetchRoomData = async (silent = false) => {
+    if (!silent) setRoomLoading(true);
     try {
       const [ordersRes, callsRes] = await Promise.all([
         fetch(apiUrl("/orders.php")),
         fetch(apiUrl("/calls.php"))
       ]);
-      
-      if (ordersRes.ok) setOrders(await ordersRes.json());
-      if (callsRes.ok) setCalls(await callsRes.json());
+      if (ordersRes.ok) {
+        const ordersData = await ordersRes.json();
+        setCachedAdminOrders(ordersData);
+        setOrders(ordersData);
+      }
+      if (callsRes.ok) {
+        const callsData = await callsRes.json();
+        setCachedAdminCalls(callsData);
+        setCalls(callsData);
+      }
     } catch (e) {
       console.error("Failed to fetch room data", e);
     }
-    setRoomLoading(false);
+    if (!silent) setRoomLoading(false);
   };
 
   const updateOrderStatus = async (id: number, status: string) => {
@@ -243,16 +257,25 @@ const AdminPanel = () => {
   };
 
   useEffect(() => {
-    if (isAnyAdmin() && activeTab) {
-      if (activeTab === 'services') {
-        fetchServices();
-      } else if (activeTab === 'feedback') {
-        fetchFeedback();
-      } else if (activeTab === 'orders' || activeTab === 'calls') {
-        fetchRoomData();
-      } else if (activeTab === 'qrcodes') {
-        fetchServices();
-      }
+    if (!isAnyAdmin() || !activeTab) return;
+
+    const servicesTabActive = activeTab === 'services' || activeTab === 'qrcodes';
+
+    if (servicesTabActive) {
+      const cached = getCachedAdminServices();
+      if (cached) { setServices(cached); setLoading(false); fetchServices(true); }
+      else fetchServices(false);
+    } else if (activeTab === 'feedback') {
+      const cached = getCachedAdminFeedback();
+      if (cached) { setFeedback(cached); setFeedbackLoading(false); fetchFeedback(true); }
+      else fetchFeedback(false);
+    } else if (activeTab === 'orders' || activeTab === 'calls') {
+      const cachedOrders = getCachedAdminOrders();
+      const cachedCalls = getCachedAdminCalls();
+      if (cachedOrders) setOrders(cachedOrders);
+      if (cachedCalls) setCalls(cachedCalls);
+      if (cachedOrders && cachedCalls) { setRoomLoading(false); fetchRoomData(true); }
+      else fetchRoomData(false);
     }
   }, [activeTab, user]);
 
@@ -388,6 +411,7 @@ const AdminPanel = () => {
     toast.promise(promise, {
       loading: `${editingService ? 'Updating' : 'Adding'} service...`,
       success: (res: any) => {
+          invalidateCachedAdminServices();
           fetchServices();
           setIsFormOpen(false);
           return `Service ${editingService ? 'updated' : 'added'} successfully!`;
@@ -406,6 +430,7 @@ const AdminPanel = () => {
       const result = await response.json();
       if (result.success) {
         toast.success("Service deleted successfully!");
+        invalidateCachedAdminServices();
         setServices(services.filter(s => s.id !== serviceId));
       } else {
         toast.error(result.error || "Failed to delete service.");
