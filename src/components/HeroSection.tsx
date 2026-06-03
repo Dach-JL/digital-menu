@@ -43,13 +43,23 @@ export const HeroSection: React.FC = () => {
               href="https://www.instagram.com/darosinternational?igsh=emx2am10Mjh4M3ll" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-white/80 hover:text-white transition-colors"
+              className="hover:scale-110 hover:brightness-110 active:scale-95 transition-all"
               aria-label="Instagram"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <radialGradient id="ig-grad" cx="0.2" cy="0.9" r="1.2">
+                    <stop offset="0%" stopColor="#FED576" />
+                    <stop offset="25%" stopColor="#F47A28" />
+                    <stop offset="50%" stopColor="#E62C6E" />
+                    <stop offset="75%" stopColor="#9C20AF" />
+                    <stop offset="100%" stopColor="#3051D8" />
+                  </radialGradient>
+                </defs>
+                <rect width="24" height="24" rx="6" fill="url(#ig-grad)" />
+                <rect x="5.5" y="5.5" width="13" height="13" rx="3.5" stroke="white" strokeWidth="1.5" fill="none" />
+                <circle cx="12" cy="12" r="3" stroke="white" strokeWidth="1.5" fill="none" />
+                <circle cx="16" cy="8" r="0.75" fill="white" />
               </svg>
             </a>
 
@@ -58,11 +68,16 @@ export const HeroSection: React.FC = () => {
               href="https://www.tiktok.com/@daros.internationalhotel" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-white/80 hover:text-white transition-colors"
+              className="hover:scale-110 active:scale-95 transition-all"
               aria-label="TikTok"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.02 1.59 4.23.86.17 1.77.17 2.63-.03v3.74c-1.12.01-2.22-.29-3.21-.86-.29-.17-.56-.39-.81-.62v7.71c.01 5.34-4.8 9.5-10.15 8.92-4.14-.45-7.39-3.92-7.46-8.08-.12-6 5.56-10.87 11.5-9.61v3.83c-2.91-.56-5.83 1.34-6.38 4.21-.5 2.62 1.25 5.23 3.88 5.76 2.76.56 5.48-1.32 5.79-4.09.05-.43.02-.87.02-1.3V.02z"/>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Red drop shadow layer */}
+                <path d="M17.5 6.5C16 6.5 14.5 5.5 14 4V1H10.5V16.5C10.5 18.5 9 20 7 20s-3.5-1.5-3.5-3.5 1.5-3.5 3.5-3.5c.5 0 1 .1 1.5.3V9.5C7.8 9.5 7.4 9.5 7 9.5c-4 0-7 3-7 7s3 7 7 7 7-3 7-7V7.5c1 1 2.5 1.5 4 1.5V5c-1 0-1.8-.8-2-1.5z" fill="#EE1D52" transform="translate(0.6, 0.6)" />
+                {/* Cyan drop shadow layer */}
+                <path d="M17.5 6.5C16 6.5 14.5 5.5 14 4V1H10.5V16.5C10.5 18.5 9 20 7 20s-3.5-1.5-3.5-3.5 1.5-3.5 3.5-3.5c.5 0 1 .1 1.5.3V9.5C7.8 9.5 7.4 9.5 7 9.5c-4 0-7 3-7 7s3 7 7 7 7-3 7-7V7.5c1 1 2.5 1.5 4 1.5V5c-1 0-1.8-.8-2-1.5z" fill="#25F4EE" transform="translate(-0.6, -0.6)" />
+                {/* White main shape layer */}
+                <path d="M17.5 6.5C16 6.5 14.5 5.5 14 4V1H10.5V16.5C10.5 18.5 9 20 7 20s-3.5-1.5-3.5-3.5 1.5-3.5 3.5-3.5c.5 0 1 .1 1.5.3V9.5C7.8 9.5 7.4 9.5 7 9.5c-4 0-7 3-7 7s3 7 7 7 7-3 7-7V7.5c1 1 2.5 1.5 4 1.5V5c-1 0-1.8-.8-2-1.5z" fill="white" />
               </svg>
             </a>
           </div>
