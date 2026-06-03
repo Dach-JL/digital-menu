@@ -43,24 +43,14 @@ export const HeroSection: React.FC = () => {
               href="https://www.instagram.com/darosinternational?igsh=emx2am10Mjh4M3ll" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="hover:scale-110 hover:brightness-110 active:scale-95 transition-all"
+              className="hover:scale-110 active:scale-95 transition-all"
               aria-label="Instagram"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <radialGradient id="ig-grad" cx="0.2" cy="0.9" r="1.2">
-                    <stop offset="0%" stopColor="#FED576" />
-                    <stop offset="25%" stopColor="#F47A28" />
-                    <stop offset="50%" stopColor="#E62C6E" />
-                    <stop offset="75%" stopColor="#9C20AF" />
-                    <stop offset="100%" stopColor="#3051D8" />
-                  </radialGradient>
-                </defs>
-                <rect width="24" height="24" rx="6" fill="url(#ig-grad)" />
-                <rect x="5.5" y="5.5" width="13" height="13" rx="3.5" stroke="white" strokeWidth="1.5" fill="none" />
-                <circle cx="12" cy="12" r="3" stroke="white" strokeWidth="1.5" fill="none" />
-                <circle cx="16" cy="8" r="0.75" fill="white" />
-              </svg>
+              <img 
+                src="/instagram.png" 
+                alt="Instagram" 
+                className="w-5 h-5 object-contain"
+              />
             </a>
 
             {/* TikTok Link */}
@@ -71,14 +61,11 @@ export const HeroSection: React.FC = () => {
               className="hover:scale-110 active:scale-95 transition-all"
               aria-label="TikTok"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                {/* Red drop shadow layer */}
-                <path d="M17.5 6.5C16 6.5 14.5 5.5 14 4V1H10.5V16.5C10.5 18.5 9 20 7 20s-3.5-1.5-3.5-3.5 1.5-3.5 3.5-3.5c.5 0 1 .1 1.5.3V9.5C7.8 9.5 7.4 9.5 7 9.5c-4 0-7 3-7 7s3 7 7 7 7-3 7-7V7.5c1 1 2.5 1.5 4 1.5V5c-1 0-1.8-.8-2-1.5z" fill="#EE1D52" transform="translate(0.6, 0.6)" />
-                {/* Cyan drop shadow layer */}
-                <path d="M17.5 6.5C16 6.5 14.5 5.5 14 4V1H10.5V16.5C10.5 18.5 9 20 7 20s-3.5-1.5-3.5-3.5 1.5-3.5 3.5-3.5c.5 0 1 .1 1.5.3V9.5C7.8 9.5 7.4 9.5 7 9.5c-4 0-7 3-7 7s3 7 7 7 7-3 7-7V7.5c1 1 2.5 1.5 4 1.5V5c-1 0-1.8-.8-2-1.5z" fill="#25F4EE" transform="translate(-0.6, -0.6)" />
-                {/* White main shape layer */}
-                <path d="M17.5 6.5C16 6.5 14.5 5.5 14 4V1H10.5V16.5C10.5 18.5 9 20 7 20s-3.5-1.5-3.5-3.5 1.5-3.5 3.5-3.5c.5 0 1 .1 1.5.3V9.5C7.8 9.5 7.4 9.5 7 9.5c-4 0-7 3-7 7s3 7 7 7 7-3 7-7V7.5c1 1 2.5 1.5 4 1.5V5c-1 0-1.8-.8-2-1.5z" fill="white" />
-              </svg>
+              <img 
+                src="/tiktok.png" 
+                alt="TikTok" 
+                className="w-5 h-5 object-contain"
+              />
             </a>
           </div>
           
