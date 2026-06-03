@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb } from './_db.js';
 import { services, orderItems } from './_schema.js';
 import { eq, desc } from 'drizzle-orm';
+import { triggerPusherEvent } from './_pusher.js';
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -47,6 +48,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (Object.keys(updateData).length > 0) {
           await db.update(services).set(updateData).where(eq(services.id, id));
         }
+        
+        // Fetch updated service and broadcast update
+        const rows = await db.select().from(services).where(eq(services.id, id));
+        if (rows.length > 0) {
+          await triggerPusherEvent('menu-updates', 'service-updated', rows[0]);
+        }
+        
         return res.json({ success: true });
       }
 
@@ -77,12 +85,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (updateId) {
           // Update
           await db.update(services).set(values).where(eq(services.id, updateId));
+          const rows = await db.select().from(services).where(eq(services.id, updateId));
+          if (rows.length > 0) {
+            await triggerPusherEvent('menu-updates', 'service-updated', rows[0]);
+          }
           return res.json({ success: true });
         } else {
           // Create
           const [insertResult] = await db.insert(services).values(values);
           const insertId = insertResult.insertId;
           const rows = await db.select().from(services).where(eq(services.id, insertId));
+          if (rows.length > 0) {
+            await triggerPusherEvent('menu-updates', 'service-created', rows[0]);
+          }
           return res.json({ success: true, service: rows[0] });
         }
       }
@@ -93,6 +108,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Delete related order items first to prevent foreign key violations
         await db.delete(orderItems).where(eq(orderItems.service_id, deleteId));
         await db.delete(services).where(eq(services.id, deleteId));
+        
+        // Broadcast delete
+        await triggerPusherEvent('menu-updates', 'service-deleted', { id: deleteId });
+        
         return res.json({ success: true });
       }
 
@@ -103,3 +122,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: e.message });
   }
 }
+

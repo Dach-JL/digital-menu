@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb } from './_db.js';
 import { roomOrders, orderItems, services } from './_schema.js';
 import { eq, desc } from 'drizzle-orm';
+import { triggerPusherEvent } from './_pusher.js';
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -94,6 +95,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           });
         }
 
+        // Fetch detailed order data with items joined to broadcast
+        const joinedRows = await db.select({
+          order_id: roomOrders.id,
+          room_number: roomOrders.room_number,
+          total_price: roomOrders.total_price,
+          status: roomOrders.status,
+          created_at: roomOrders.created_at,
+          item_id: orderItems.id,
+          service_id: orderItems.service_id,
+          quantity: orderItems.quantity,
+          price: orderItems.price,
+          name_en: services.name_en,
+          image_url: services.image_url
+        })
+        .from(roomOrders)
+        .leftJoin(orderItems, eq(orderItems.order_id, roomOrders.id))
+        .leftJoin(services, eq(services.id, orderItems.service_id))
+        .where(eq(roomOrders.id, orderId));
+
+        if (joinedRows.length > 0) {
+          const firstRow = joinedRows[0];
+          const orderData = {
+            id: orderId,
+            room_number: firstRow.room_number,
+            total_price: Number(firstRow.total_price),
+            status: firstRow.status || 'pending',
+            created_at: firstRow.created_at,
+            items: joinedRows.filter((row: any) => row.item_id).map((row: any) => ({
+              id: row.item_id,
+              service_id: row.service_id,
+              quantity: Number(row.quantity),
+              price: Number(row.price),
+              name_en: row.name_en,
+              image_url: row.image_url
+            }))
+          };
+          await triggerPusherEvent('admin-orders', 'order-placed', orderData);
+        }
+
         return res.json({ success: true, order_id: orderId });
       }
 
@@ -101,6 +141,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { id, status } = req.body;
         if (!id || !status) return res.status(400).json({ error: 'Missing order ID or status.' });
         await db.update(roomOrders).set({ status }).where(eq(roomOrders.id, id));
+        
+        // Broadcast status update
+        await triggerPusherEvent('admin-orders', 'order-status-changed', { id, status });
+        
         return res.json({ success: true });
       }
 
@@ -111,3 +155,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: e.message });
   }
 }
+

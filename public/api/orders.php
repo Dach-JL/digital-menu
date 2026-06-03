@@ -65,6 +65,34 @@ switch ($method) {
 
             $pdo->commit();
             
+            // Broadcast new order via Pusher
+            $orderSelect = $pdo->prepare('SELECT * FROM room_orders WHERE id = ?');
+            $orderSelect->execute([$orderId]);
+            $newOrder = $orderSelect->fetch();
+            if ($newOrder) {
+                $newOrder['id'] = (int)$newOrder['id'];
+                $newOrder['total_price'] = (float)$newOrder['total_price'];
+                
+                $itemsSelect = $pdo->prepare('
+                    SELECT oi.*, s.name_en, s.image_url 
+                    FROM order_items oi 
+                    JOIN services s ON oi.service_id = s.id 
+                    WHERE oi.order_id = ?
+                ');
+                $itemsSelect->execute([$orderId]);
+                $orderItems = $itemsSelect->fetchAll();
+                foreach ($orderItems as &$item) {
+                    $item['id'] = (int)$item['id'];
+                    $item['order_id'] = (int)$item['order_id'];
+                    $item['service_id'] = (int)$item['service_id'];
+                    $item['quantity'] = (int)$item['quantity'];
+                    $item['price'] = (float)$item['price'];
+                }
+                $newOrder['items'] = $orderItems;
+                
+                triggerPusherEvent('admin-orders', 'order-placed', $newOrder);
+            }
+            
             echo json_encode(['success' => true, 'order_id' => $orderId]);
         } catch (PDOException $e) {
             $pdo->rollBack();
@@ -85,6 +113,13 @@ switch ($method) {
         try {
             $stmt = $pdo->prepare('UPDATE room_orders SET status = ? WHERE id = ?');
             $stmt->execute([$data['status'], $data['id']]);
+            
+            // Broadcast status update via Pusher
+            triggerPusherEvent('admin-orders', 'order-status-changed', [
+                'id' => (int)$data['id'],
+                'status' => $data['status']
+            ]);
+            
             echo json_encode(['success' => true]);
         } catch (PDOException $e) {
             http_response_code(500);

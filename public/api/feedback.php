@@ -53,7 +53,36 @@ if ($method === 'POST') {
     try {
         $stmt = $pdo->prepare('INSERT INTO feedback (user_id, service_id, category, comment, rating) VALUES (?, ?, ?, ?, ?)');
         $stmt->execute([$user_id, $service_id, $category, $comment, $rating]);
-        echo json_encode(['success' => true, 'id' => $pdo->lastInsertId()]);
+        $feedbackId = $pdo->lastInsertId();
+
+        // Broadcast feedback via Pusher
+        $fbSelect = $pdo->prepare('
+            SELECT 
+                f.id, 
+                f.comment, 
+                f.rating, 
+                f.created_at, 
+                f.category,
+                u.username, 
+                s.name_en AS service_name
+            FROM 
+                feedback f
+            LEFT JOIN 
+                users u ON f.user_id = u.id
+            LEFT JOIN 
+                services s ON f.service_id = s.id
+            WHERE
+                f.id = ?
+        ');
+        $fbSelect->execute([$feedbackId]);
+        $newFb = $fbSelect->fetch();
+        if ($newFb) {
+            $newFb['id'] = (int)$newFb['id'];
+            $newFb['rating'] = (int)$newFb['rating'];
+            triggerPusherEvent('admin-feedback', 'feedback-submitted', $newFb);
+        }
+
+        echo json_encode(['success' => true, 'id' => $feedbackId]);
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);

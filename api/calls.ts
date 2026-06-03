@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb } from './_db.js';
 import { waiterCalls } from './_schema.js';
 import { eq, desc } from 'drizzle-orm';
+import { triggerPusherEvent } from './_pusher.js';
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -32,6 +33,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const [insertResult] = await db.insert(waiterCalls).values({
           room_number: roomNumber
         });
+        
+        // Fetch call row and broadcast event
+        const rows = await db.select().from(waiterCalls).where(eq(waiterCalls.id, insertResult.insertId));
+        if (rows.length > 0) {
+          await triggerPusherEvent('admin-calls', 'call-placed', rows[0]);
+        }
+        
         return res.json({ success: true, call_id: insertResult.insertId });
       }
 
@@ -39,6 +47,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { id, status } = req.body;
         if (!id || !status) return res.status(400).json({ error: 'Missing call ID or status.' });
         await db.update(waiterCalls).set({ status }).where(eq(waiterCalls.id, id));
+        
+        // Broadcast completion / status update
+        await triggerPusherEvent('admin-calls', 'call-completed', { id, status });
+        
         return res.json({ success: true });
       }
 
@@ -49,3 +61,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: e.message });
   }
 }
+

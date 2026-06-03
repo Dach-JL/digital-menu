@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb } from './_db.js';
 import { feedback, users, services } from './_schema.js';
 import { eq, desc } from 'drizzle-orm';
+import { triggerPusherEvent } from './_pusher.js';
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -49,6 +50,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         comment,
         rating: Number(rating)
       });
+      
+      // Fetch detailed feedback with user and service joins
+      const rows = await db.select({
+        id: feedback.id,
+        comment: feedback.comment,
+        rating: feedback.rating,
+        created_at: feedback.created_at,
+        category: feedback.category,
+        username: users.username,
+        service_name: services.name_en
+      })
+      .from(feedback)
+      .leftJoin(users, eq(feedback.user_id, users.id))
+      .leftJoin(services, eq(feedback.service_id, services.id))
+      .where(eq(feedback.id, insertResult.insertId));
+      
+      if (rows.length > 0) {
+        await triggerPusherEvent('admin-feedback', 'feedback-submitted', rows[0]);
+      }
+      
       return res.json({ success: true, id: insertResult.insertId });
     }
 
@@ -57,3 +78,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: e.message });
   }
 }
+

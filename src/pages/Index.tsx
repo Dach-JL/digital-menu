@@ -12,6 +12,7 @@ import { useUser } from '@/contexts/UserContext';
 import { RoomBadge } from '@/components/RoomBadge';
 import { FloatingCart } from '@/components/FloatingCart';
 import { FloatingCallWaiter } from '@/components/FloatingCallWaiter';
+import { pusherClient } from '@/config/pusher';
 
 
 const Index = () => {
@@ -77,6 +78,69 @@ const Index = () => {
   useEffect(() => {
     fetchServicesAndFavorites(!!getCachedProducts());
   }, [fetchServicesAndFavorites]);
+
+  // Real-time menu updates subscription
+  useEffect(() => {
+    const channel = pusherClient.subscribe('menu-updates');
+
+    const handleServiceCreated = (newService: any) => {
+      setProducts((prevProducts) => {
+        // Avoid duplicates if already exists
+        if (prevProducts.some((p) => String(p.id) === String(newService.id))) return prevProducts;
+
+        const mapped: Product = {
+          ...newService,
+          id: String(newService.id),
+          price: newService.price,
+          rating: 5,
+          reviewCount: "0",
+          image: newService.image_url || "/placeholder.svg",
+          isFavoritedInitially: false,
+        };
+        const updated = [mapped, ...prevProducts];
+        setCachedProducts(updated);
+        return updated;
+      });
+    };
+
+    const handleServiceUpdated = (updatedService: any) => {
+      setProducts((prevProducts) => {
+        const updated = prevProducts.map((p) => {
+          if (String(p.id) === String(updatedService.id)) {
+            return {
+              ...p,
+              ...updatedService,
+              id: String(updatedService.id),
+              image: updatedService.image_url || "/placeholder.svg",
+            };
+          }
+          return p;
+        });
+        setCachedProducts(updated);
+        return updated;
+      });
+    };
+
+    const handleServiceDeleted = (data: { id: number }) => {
+      setProducts((prevProducts) => {
+        const updated = prevProducts.filter((p) => String(p.id) !== String(data.id));
+        setCachedProducts(updated);
+        return updated;
+      });
+    };
+
+    channel.bind('service-created', handleServiceCreated);
+    channel.bind('service-updated', handleServiceUpdated);
+    channel.bind('service-deleted', handleServiceDeleted);
+
+    return () => {
+      channel.unbind('service-created', handleServiceCreated);
+      channel.unbind('service-updated', handleServiceUpdated);
+      channel.unbind('service-deleted', handleServiceDeleted);
+      pusherClient.unsubscribe('menu-updates');
+    };
+  }, []);
+
 
   return (
     <div className="bg-background text-foreground flex max-w-[480px] w-full flex-col overflow-x-hidden mx-auto min-h-screen pb-28">

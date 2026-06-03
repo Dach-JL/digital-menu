@@ -37,6 +37,16 @@ switch ($method) {
             $stmt = $pdo->prepare('INSERT INTO waiter_calls (room_number) VALUES (?)');
             $stmt->execute([$data['roomNumber']]);
             $callId = $pdo->lastInsertId();
+            
+            // Broadcast new call via Pusher
+            $callSelect = $pdo->prepare('SELECT * FROM waiter_calls WHERE id = ?');
+            $callSelect->execute([$callId]);
+            $newCall = $callSelect->fetch();
+            if ($newCall) {
+                $newCall['id'] = (int)$newCall['id'];
+                triggerPusherEvent('admin-calls', 'call-placed', $newCall);
+            }
+            
             echo json_encode(['success' => true, 'call_id' => $callId]);
         } catch (PDOException $e) {
             http_response_code(500);
@@ -56,6 +66,13 @@ switch ($method) {
         try {
             $stmt = $pdo->prepare('UPDATE waiter_calls SET status = ? WHERE id = ?');
             $stmt->execute([$data['status'], $data['id']]);
+            
+            // Broadcast call completion via Pusher
+            triggerPusherEvent('admin-calls', 'call-completed', [
+                'id' => (int)$data['id'],
+                'status' => $data['status']
+            ]);
+            
             echo json_encode(['success' => true]);
         } catch (PDOException $e) {
             http_response_code(500);

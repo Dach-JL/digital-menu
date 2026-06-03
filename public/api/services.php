@@ -84,6 +84,16 @@ switch ($method) {
         try {
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
+            
+            // Broadcast menu update via Pusher
+            $stmt_select = $pdo->prepare('SELECT * FROM services WHERE id = ?');
+            $stmt_select->execute([$id]);
+            $updated = $stmt_select->fetch();
+            if ($updated) {
+                $updated['is_available'] = (bool)$updated['is_available'];
+                triggerPusherEvent('menu-updates', 'service-updated', $updated);
+            }
+            
             echo json_encode(['success' => true]);
         } catch (PDOException $e) {
             http_response_code(500);
@@ -158,6 +168,16 @@ switch ($method) {
             try {
                 $stmt = $pdo->prepare('UPDATE services SET name_en=?, description_en=?, name_am=?, description_am=?, name_om=?, description_om=?, type=?, subcategory=?, price=?, image_url=?, ingredients=?, macro_kcal=?, macro_protein=?, macro_fat=?, macro_carbs=?, beds=?, max_guests=?, room_number=? WHERE id=?');
                 $stmt->execute([$name_en, $description_en, $name_am, $description_am, $name_om, $description_om, $type, $subcategory, $price, $image_url, $ingredients, $macro_kcal, $macro_protein, $macro_fat, $macro_carbs, $beds, $max_guests, $room_number, $id]);
+                
+                // Broadcast update via Pusher
+                $stmt_select = $pdo->prepare('SELECT * FROM services WHERE id = ?');
+                $stmt_select->execute([$id]);
+                $updated = $stmt_select->fetch();
+                if ($updated) {
+                    $updated['is_available'] = (bool)$updated['is_available'];
+                    triggerPusherEvent('menu-updates', 'service-updated', $updated);
+                }
+                
                 echo json_encode(['success' => true]);
             } catch (PDOException $e) {
                 http_response_code(500);
@@ -183,6 +203,13 @@ switch ($method) {
                 $selectStmt = $pdo->prepare('SELECT * FROM services WHERE id = ?');
                 $selectStmt->execute([$newServiceId]);
                 $newService = $selectStmt->fetch();
+                
+                // Broadcast creation via Pusher
+                if ($newService) {
+                    $newService['is_available'] = (bool)$newService['is_available'];
+                    triggerPusherEvent('menu-updates', 'service-created', $newService);
+                }
+                
                 echo json_encode(['success' => true, 'service' => $newService]);
             } catch (PDOException $e) {
                 http_response_code(500);
@@ -221,6 +248,10 @@ switch ($method) {
             
             $stmt = $pdo->prepare('DELETE FROM services WHERE id=?');
             $stmt->execute([$id]);
+            
+            // Broadcast deletion via Pusher
+            triggerPusherEvent('menu-updates', 'service-deleted', ['id' => (int)$id]);
+            
             echo json_encode(['success' => true]);
         } catch (PDOException $e) {
             http_response_code(500);

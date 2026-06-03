@@ -26,6 +26,7 @@ import {
   getCachedAdminOrders, setCachedAdminOrders,
   getCachedAdminCalls, setCachedAdminCalls,
 } from '@/lib/pageCache';
+import { pusherClient } from '@/config/pusher';
 
 // Updated Service type
 interface Service {
@@ -138,6 +139,134 @@ const AdminPanel = () => {
   const [formData, setFormData] = useState(initialFormData);
   const [ingredients, setIngredients] = useState<string[]>([""]);
   const [imageFile, setImageFile] = useState<File | null>(null);
+
+  // Play a dual-tone chime sound for new orders and calls (browser-native, no download required)
+  const playChime = () => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const playNote = (freq: number, start: number, duration: number) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, start);
+        gain.gain.setValueAtTime(0.15, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(start);
+        osc.stop(start + duration);
+      };
+      const now = audioCtx.currentTime;
+      playNote(587.33, now, 0.4);       // D5 note
+      playNote(880.00, now + 0.12, 0.6); // A5 note
+    } catch (e) {
+      console.error("Audio Context playback failed:", e);
+    }
+  };
+
+  // Real-time updates subscription via Pusher
+  useEffect(() => {
+    // 1. Subscribe to menu-updates
+    const menuChannel = pusherClient.subscribe('menu-updates');
+
+    menuChannel.bind('service-created', (newService: any) => {
+      setServices((prev) => {
+        if (prev.some((s) => s.id === newService.id)) return prev;
+        const updated = [newService, ...prev];
+        setCachedAdminServices(updated);
+        return updated;
+      });
+    });
+
+    menuChannel.bind('service-updated', (updatedService: any) => {
+      setServices((prev) => {
+        const updated = prev.map((s) => (s.id === updatedService.id ? updatedService : s));
+        setCachedAdminServices(updated);
+        return updated;
+      });
+    });
+
+    menuChannel.bind('service-deleted', (data: { id: number }) => {
+      setServices((prev) => {
+        const updated = prev.filter((s) => s.id !== data.id);
+        setCachedAdminServices(updated);
+        return updated;
+      });
+    });
+
+    // 2. Subscribe to admin-orders
+    const ordersChannel = pusherClient.subscribe('admin-orders');
+
+    ordersChannel.bind('order-placed', (newOrder: any) => {
+      setOrders((prev) => {
+        if (prev.some((o) => o.id === newOrder.id)) return prev;
+        const updated = [newOrder, ...prev];
+        setCachedAdminOrders(updated);
+        return updated;
+      });
+      playChime();
+      toast.info(`New Order received from Room/Table ${newOrder.room_number}!`, {
+        icon: '🛍️',
+        duration: 8000,
+      });
+    });
+
+    ordersChannel.bind('order-status-changed', (data: any) => {
+      setOrders((prev) => {
+        const updated = prev.map((o) => (o.id === data.id ? { ...o, status: data.status } : o));
+        setCachedAdminOrders(updated);
+        return updated;
+      });
+    });
+
+    // 3. Subscribe to admin-calls
+    const callsChannel = pusherClient.subscribe('admin-calls');
+
+    callsChannel.bind('call-placed', (newCall: any) => {
+      setCalls((prev) => {
+        if (prev.some((c) => c.id === newCall.id)) return prev;
+        const updated = [newCall, ...prev];
+        setCachedAdminCalls(updated);
+        return updated;
+      });
+      playChime();
+      toast.info(`New Waiter Call from Room/Table ${newCall.room_number}!`, {
+        icon: '🔔',
+        duration: 8000,
+      });
+    });
+
+    callsChannel.bind('call-completed', (data: any) => {
+      setCalls((prev) => {
+        const updated = prev.map((c) => (c.id === data.id ? { ...c, status: data.status } : c));
+        setCachedAdminCalls(updated);
+        return updated;
+      });
+    });
+
+    // 4. Subscribe to admin-feedback
+    const feedbackChannel = pusherClient.subscribe('admin-feedback');
+
+    feedbackChannel.bind('feedback-submitted', (newFeedback: any) => {
+      setFeedback((prev) => {
+        if (prev.some((f) => f.id === newFeedback.id)) return prev;
+        const updated = [newFeedback, ...prev];
+        setCachedAdminFeedback(updated);
+        return updated;
+      });
+      toast.success('New customer feedback submitted!', {
+        icon: '💬',
+        duration: 5000,
+      });
+    });
+
+    return () => {
+      pusherClient.unsubscribe('menu-updates');
+      pusherClient.unsubscribe('admin-orders');
+      pusherClient.unsubscribe('admin-calls');
+      pusherClient.unsubscribe('admin-feedback');
+    };
+  }, []);
 
   // Remove auto-setting active tab so it defaults to Master Menu
   useEffect(() => {

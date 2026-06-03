@@ -52,4 +52,63 @@ try {
     echo json_encode(['error' => 'Database connection failed: ' . $e->getMessage()]);
     exit;
 }
+
+// Lightweight cURL-based Pusher trigger helper for local development (no Composer dependencies needed)
+function triggerPusherEvent($channel, $event, $data) {
+    $appId = getenv('PUSHER_APP_ID') ?: (getenv('app_id') ?: ($_ENV['PUSHER_APP_ID'] ?? ($_ENV['app_id'] ?? '')));
+    $key = getenv('PUSHER_KEY') ?: (getenv('key') ?: ($_ENV['PUSHER_KEY'] ?? ($_ENV['key'] ?? '')));
+    $secret = getenv('PUSHER_SECRET') ?: (getenv('secret') ?: ($_ENV['PUSHER_SECRET'] ?? ($_ENV['secret'] ?? '')));
+    $cluster = getenv('PUSHER_CLUSTER') ?: (getenv('cluster') ?: ($_ENV['PUSHER_CLUSTER'] ?? ($_ENV['cluster'] ?? 'mt1')));
+
+    // Strip quotes if they were loaded from .env
+    $appId = trim($appId, " \t\n\r\0\x0B\"'");
+    $key = trim($key, " \t\n\r\0\x0B\"'");
+    $secret = trim($secret, " \t\n\r\0\x0B\"'");
+    $cluster = trim($cluster, " \t\n\r\0\x0B\"'");
+
+    if (empty($appId) || empty($key) || empty($secret)) {
+        return false;
+    }
+
+    $data_encoded = json_encode($data);
+    $body = json_encode([
+        'name' => $event,
+        'channels' => [$channel],
+        'data' => $data_encoded
+    ]);
+
+    $path = "/apps/{$appId}/events";
+    $timestamp = time();
+    $body_md5 = md5($body);
+
+    $params = [
+        'auth_key' => $key,
+        'auth_timestamp' => $timestamp,
+        'auth_version' => '1.0',
+        'body_md5' => $body_md5
+    ];
+    ksort($params);
+
+    $query_string = http_build_query($params);
+    $string_to_sign = "POST\n{$path}\n{$query_string}";
+    $signature = hash_hmac('sha256', $string_to_sign, $secret);
+
+    $url = "https://api-{$cluster}.pusher.com{$path}?{$query_string}&auth_signature={$signature}";
+
+    $ch = curl_init($url);
+    if (!$ch) return false;
+    
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json',
+        'Content-Length: ' . strlen($body)
+    ]);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+    $response = curl_exec($ch);
+    curl_close($ch);
+    return $response !== false;
+}
 ?>
+
