@@ -106,7 +106,15 @@ function triggerPusherEvent($channel, $event, $data) {
         'Content-Length: ' . strlen($body)
     ]);
     curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+    
+    // Disable SSL verification for local development testing to prevent SSL errors on Windows
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+
     $response = curl_exec($ch);
+    if ($response === false) {
+        error_log('Pusher trigger curl error: ' . curl_error($ch));
+    }
     curl_close($ch);
     return $response !== false;
 }

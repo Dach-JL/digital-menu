@@ -171,7 +171,7 @@ const AdminPanel = () => {
 
     menuChannel.bind('service-created', (newService: any) => {
       setServices((prev) => {
-        if (prev.some((s) => s.id === newService.id)) return prev;
+        if (prev.some((s) => String(s.id) === String(newService.id))) return prev;
         const updated = [newService, ...prev];
         setCachedAdminServices(updated);
         return updated;
@@ -180,7 +180,7 @@ const AdminPanel = () => {
 
     menuChannel.bind('service-updated', (updatedService: any) => {
       setServices((prev) => {
-        const updated = prev.map((s) => (s.id === updatedService.id ? updatedService : s));
+        const updated = prev.map((s) => (String(s.id) === String(updatedService.id) ? updatedService : s));
         setCachedAdminServices(updated);
         return updated;
       });
@@ -188,7 +188,7 @@ const AdminPanel = () => {
 
     menuChannel.bind('service-deleted', (data: { id: number }) => {
       setServices((prev) => {
-        const updated = prev.filter((s) => s.id !== data.id);
+        const updated = prev.filter((s) => String(s.id) !== String(data.id));
         setCachedAdminServices(updated);
         return updated;
       });
@@ -199,7 +199,7 @@ const AdminPanel = () => {
 
     ordersChannel.bind('order-placed', (newOrder: any) => {
       setOrders((prev) => {
-        if (prev.some((o) => o.id === newOrder.id)) return prev;
+        if (prev.some((o) => String(o.id) === String(newOrder.id))) return prev;
         const updated = [newOrder, ...prev];
         setCachedAdminOrders(updated);
         return updated;
@@ -213,7 +213,7 @@ const AdminPanel = () => {
 
     ordersChannel.bind('order-status-changed', (data: any) => {
       setOrders((prev) => {
-        const updated = prev.map((o) => (o.id === data.id ? { ...o, status: data.status } : o));
+        const updated = prev.map((o) => (String(o.id) === String(data.id) ? { ...o, status: data.status } : o));
         setCachedAdminOrders(updated);
         return updated;
       });
@@ -224,7 +224,7 @@ const AdminPanel = () => {
 
     callsChannel.bind('call-placed', (newCall: any) => {
       setCalls((prev) => {
-        if (prev.some((c) => c.id === newCall.id)) return prev;
+        if (prev.some((c) => String(c.id) === String(newCall.id))) return prev;
         const updated = [newCall, ...prev];
         setCachedAdminCalls(updated);
         return updated;
@@ -238,7 +238,7 @@ const AdminPanel = () => {
 
     callsChannel.bind('call-completed', (data: any) => {
       setCalls((prev) => {
-        const updated = prev.map((c) => (c.id === data.id ? { ...c, status: data.status } : c));
+        const updated = prev.map((c) => (String(c.id) === String(data.id) ? { ...c, status: data.status } : c));
         setCachedAdminCalls(updated);
         return updated;
       });
@@ -249,7 +249,7 @@ const AdminPanel = () => {
 
     feedbackChannel.bind('feedback-submitted', (newFeedback: any) => {
       setFeedback((prev) => {
-        if (prev.some((f) => f.id === newFeedback.id)) return prev;
+        if (prev.some((f) => String(f.id) === String(newFeedback.id))) return prev;
         const updated = [newFeedback, ...prev];
         setCachedAdminFeedback(updated);
         return updated;
