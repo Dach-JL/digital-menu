@@ -53,6 +53,30 @@ try {
     exit;
 }
 
+function cleanPayload($data) {
+    if (is_string($data)) {
+        if (strpos($data, 'data:') === 0 || strlen($data) > 500) {
+            return '';
+        }
+        return $data;
+    }
+    if (is_array($data)) {
+        $cleaned = [];
+        foreach ($data as $key => $value) {
+            $cleaned[$key] = cleanPayload($value);
+        }
+        return $cleaned;
+    }
+    if (is_object($data)) {
+        $cleaned = new stdClass();
+        foreach (get_object_vars($data) as $key => $value) {
+            $cleaned->$key = cleanPayload($value);
+        }
+        return $cleaned;
+    }
+    return $data;
+}
+
 // Lightweight cURL-based Pusher trigger helper for local development (no Composer dependencies needed)
 function triggerPusherEvent($channel, $event, $data) {
     $appId = getenv('PUSHER_APP_ID') ?: (getenv('app_id') ?: ($_ENV['PUSHER_APP_ID'] ?? ($_ENV['app_id'] ?? '')));
@@ -70,7 +94,8 @@ function triggerPusherEvent($channel, $event, $data) {
         return false;
     }
 
-    $data_encoded = json_encode($data);
+    $cleaned_data = cleanPayload($data);
+    $data_encoded = json_encode($cleaned_data);
     $body = json_encode([
         'name' => $event,
         'channels' => [$channel],
