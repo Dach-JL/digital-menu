@@ -88,6 +88,9 @@ const Index = () => {
         // Avoid duplicates if already exists
         if (prevProducts.some((p) => String(p.id) === String(newService.id))) return prevProducts;
 
+        // If the service is created as hidden, do not add it to guest view
+        if (!newService.is_available) return prevProducts;
+
         const mapped: Product = {
           ...newService,
           id: String(newService.id),
@@ -105,6 +108,35 @@ const Index = () => {
 
     const handleServiceUpdated = (updatedService: any) => {
       setProducts((prevProducts) => {
+        const isCurrentlyInList = prevProducts.some((p) => String(p.id) === String(updatedService.id));
+
+        if (!updatedService.is_available) {
+          // If the item is marked as unavailable/hidden, remove it from the guest view
+          if (isCurrentlyInList) {
+            const updated = prevProducts.filter((p) => String(p.id) !== String(updatedService.id));
+            setCachedProducts(updated);
+            return updated;
+          }
+          return prevProducts;
+        }
+
+        // If the item is available but not in the list (e.g. was previously hidden, now unhidden), add it
+        if (!isCurrentlyInList) {
+          const mapped: Product = {
+            ...updatedService,
+            id: String(updatedService.id),
+            price: updatedService.price,
+            rating: 5,
+            reviewCount: "0",
+            image: updatedService.image_url || "/placeholder.svg",
+            isFavoritedInitially: false,
+          };
+          const updated = [mapped, ...prevProducts];
+          setCachedProducts(updated);
+          return updated;
+        }
+
+        // If the item is available and already in the list, update its details in real-time
         const updated = prevProducts.map((p) => {
           if (String(p.id) === String(updatedService.id)) {
             return {
