@@ -104,6 +104,9 @@ const Index = () => {
         setCachedProducts(updated);
         return updated;
       });
+      
+      // Trigger a silent background fetch to retrieve the full Base64 image immediately
+      fetchServicesAndFavorites(true);
     };
 
     const handleServiceUpdated = (updatedService: any) => {
@@ -143,7 +146,8 @@ const Index = () => {
               ...p,
               ...updatedService,
               id: String(updatedService.id),
-              image: updatedService.image_url || "/placeholder.svg",
+              // Reuse existing image if Pusher payload has stripped image_url to prevent image disappearing
+              image: updatedService.image_url || p.image || "/placeholder.svg",
             };
           }
           return p;
@@ -151,6 +155,9 @@ const Index = () => {
         setCachedProducts(updated);
         return updated;
       });
+
+      // Trigger a silent background fetch to retrieve the full Base64 image immediately
+      fetchServicesAndFavorites(true);
     };
 
     const handleServiceDeleted = (data: { id: number }) => {
@@ -159,6 +166,9 @@ const Index = () => {
         setCachedProducts(updated);
         return updated;
       });
+      
+      // Keep lists in sync
+      fetchServicesAndFavorites(true);
     };
 
     channel.bind('service-created', handleServiceCreated);
@@ -171,6 +181,7 @@ const Index = () => {
       channel.unbind('service-deleted', handleServiceDeleted);
       pusherClient.unsubscribe('menu-updates');
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
 

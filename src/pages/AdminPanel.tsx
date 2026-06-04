@@ -176,14 +176,28 @@ const AdminPanel = () => {
         setCachedAdminServices(updated);
         return updated;
       });
+      // Trigger a silent background fetch to retrieve the full Base64 image
+      fetchServices(true);
     });
 
     menuChannel.bind('service-updated', (updatedService: any) => {
       setServices((prev) => {
-        const updated = prev.map((s) => (String(s.id) === String(updatedService.id) ? updatedService : s));
+        const updated = prev.map((s) => {
+          if (String(s.id) === String(updatedService.id)) {
+            return {
+              ...s,
+              ...updatedService,
+              // Reuse existing image if Pusher payload has stripped image_url
+              image_url: updatedService.image_url || s.image_url || ""
+            };
+          }
+          return s;
+        });
         setCachedAdminServices(updated);
         return updated;
       });
+      // Trigger a silent background fetch to retrieve the full Base64 image
+      fetchServices(true);
     });
 
     menuChannel.bind('service-deleted', (data: { id: number }) => {
@@ -192,6 +206,8 @@ const AdminPanel = () => {
         setCachedAdminServices(updated);
         return updated;
       });
+      // Keep list in sync
+      fetchServices(true);
     });
 
     // 2. Subscribe to admin-orders
