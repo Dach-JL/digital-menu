@@ -170,14 +170,18 @@ const AdminPanel = () => {
     const menuChannel = pusherClient.subscribe('menu-updates');
 
     menuChannel.bind('service-created', (newService: any) => {
+      let isNew = false;
       setServices((prev) => {
         if (prev.some((s) => String(s.id) === String(newService.id))) return prev;
+        isNew = true;
         const updated = [newService, ...prev];
         setCachedAdminServices(updated);
         return updated;
       });
-      // Trigger a silent background fetch to retrieve the full Base64 image
-      fetchServices(true);
+      // Only reload full database list if the new service was created by another session and we need the image
+      if (isNew) {
+        fetchServices(true);
+      }
     });
 
     menuChannel.bind('service-updated', (updatedService: any) => {
@@ -196,8 +200,7 @@ const AdminPanel = () => {
         setCachedAdminServices(updated);
         return updated;
       });
-      // Trigger a silent background fetch to retrieve the full Base64 image
-      fetchServices(true);
+      // Removed fetchServices(true) to prevent massive image and database re-download
     });
 
     menuChannel.bind('service-deleted', (data: { id: number }) => {
@@ -206,8 +209,7 @@ const AdminPanel = () => {
         setCachedAdminServices(updated);
         return updated;
       });
-      // Keep list in sync
-      fetchServices(true);
+      // Removed fetchServices(true) to prevent massive database re-download
     });
 
     // 2. Subscribe to admin-orders
@@ -352,51 +354,82 @@ const AdminPanel = () => {
   };
 
   const updateOrderStatus = async (id: number, status: string) => {
+    const originalOrders = [...orders];
+    
+    // Optimistic UI update
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: status as any } : o));
+    setCachedAdminOrders(orders.map(o => o.id === id ? { ...o, status: status as any } : o));
+
     try {
       const res = await fetch(apiUrl("/orders.php"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status })
       });
-      if (res.ok) {
-        toast.success(`Order status updated to ${status}`);
-        fetchRoomData();
+      if (!res.ok) {
+        throw new Error();
       }
+      toast.success(`Order status updated to ${status}`);
+      // Refresh background data silently
+      fetchRoomData(true);
     } catch (e) {
+      // Revert state
+      setOrders(originalOrders);
+      setCachedAdminOrders(originalOrders);
       toast.error("Failed to update order status");
     }
   };
 
   const updateCallStatus = async (id: number, status: string) => {
+    const originalCalls = [...calls];
+
+    // Optimistic UI update
+    setCalls(prev => prev.map(c => c.id === id ? { ...c, status: status as any } : c));
+    setCachedAdminCalls(calls.map(c => c.id === id ? { ...c, status: status as any } : c));
+
     try {
       const res = await fetch(apiUrl("/calls.php"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status })
       });
-      if (res.ok) {
-        toast.success(`Call marked as ${status}`);
-        fetchRoomData();
+      if (!res.ok) {
+        throw new Error();
       }
+      toast.success(`Call marked as ${status}`);
+      // Refresh background data silently
+      fetchRoomData(true);
     } catch (e) {
+      // Revert state
+      setCalls(originalCalls);
+      setCachedAdminCalls(originalCalls);
       toast.error("Failed to update call status");
     }
   };
 
   // Toggle service availability
   const toggleAvailability = async (service: Service) => {
-    const newAvailability = !service.is_available;
+    const originalAvailability = service.is_available;
+    const newAvailability = !originalAvailability;
+
+    // Optimistic UI update
+    setServices(prev => prev.map(s => s.id === service.id ? { ...s, is_available: newAvailability } : s));
+    setCachedAdminServices(services.map(s => s.id === service.id ? { ...s, is_available: newAvailability } : s));
+
     try {
       const res = await fetch(apiUrl("/services.php"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: service.id, is_available: newAvailability })
       });
-      if (res.ok) {
-        toast.success(newAvailability ? `"${service.name_en}" is now available` : `"${service.name_en}" is now hidden`);
-        setServices(prev => prev.map(s => s.id === service.id ? { ...s, is_available: newAvailability } : s));
+      if (!res.ok) {
+        throw new Error();
       }
+      toast.success(newAvailability ? `"${service.name_en}" is now available` : `"${service.name_en}" is now hidden`);
     } catch (e) {
+      // Revert state
+      setServices(prev => prev.map(s => s.id === service.id ? { ...s, is_available: originalAvailability } : s));
+      setCachedAdminServices(services.map(s => s.id === service.id ? { ...s, is_available: originalAvailability } : s));
       toast.error("Failed to toggle availability");
     }
   };
@@ -566,6 +599,12 @@ const AdminPanel = () => {
   };
 
   const handleDelete = async (serviceId: number) => {
+    const originalServices = [...services];
+
+    // Optimistic UI update
+    setServices(services.filter(s => s.id !== serviceId));
+    invalidateCachedAdminServices();
+
     try {
       const response = await fetch(apiUrl("/services.php"), {
         method: "DELETE",
@@ -575,13 +614,14 @@ const AdminPanel = () => {
       const result = await response.json();
       if (result.success) {
         toast.success("Service deleted successfully!");
-        invalidateCachedAdminServices();
-        setServices(services.filter(s => s.id !== serviceId));
       } else {
-        toast.error(result.error || "Failed to delete service.");
+        throw new Error(result.error || "Failed to delete service.");
       }
-    } catch (error) {
-      toast.error("Error deleting service.");
+    } catch (error: any) {
+      // Revert state
+      setServices(originalServices);
+      setCachedAdminServices(originalServices);
+      toast.error(error.message || "Error deleting service.");
     }
   };
 
@@ -1122,103 +1162,736 @@ const AdminPanel = () => {
     );
   };
 
+  const renderDesktopServicesTab = () => {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="flex items-center justify-between">
+          <CategoryTabs 
+            onCategoryChange={setServiceCategory} 
+            hideAll={true}
+            allowedCategories={userRole === 'admin' ? ['food', 'drink', 'room'] : allowedServiceTypes}
+          />
+        </div>
+
+        {loading ? (
+          <div className="text-center py-12 text-muted-foreground">{t('messages.loading')}</div>
+        ) : error ? (
+          <div className="text-destructive text-center py-12">{error}</div>
+        ) : (
+          <Card className="overflow-hidden border shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 font-semibold text-muted-foreground select-none">
+                    <th className="p-4">Item</th>
+                    <th className="p-4">Category</th>
+                    <th className="p-4">Subcategory</th>
+                    <th className="p-4">Price</th>
+                    <th className="p-4 text-center">Status</th>
+                    <th className="p-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filteredServices.map((service) => (
+                    <tr key={service.id} className={`hover:bg-muted/10 transition-colors ${!service.is_available ? 'opacity-60 bg-muted/5' : ''}`}>
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={uploadsUrl(service.image_url)}
+                            alt={service.name_en}
+                            className="w-12 h-12 object-cover rounded-md border shrink-0"
+                            onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }}
+                          />
+                          <div>
+                            <p className="font-bold text-foreground">{service.name_en}</p>
+                            <p className="text-[11px] text-muted-foreground line-clamp-1 max-w-[300px]">{service.description_en}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4 capitalize font-medium">{service.type}</td>
+                      <td className="p-4 text-muted-foreground">{service.subcategory || 'N/A'}</td>
+                      <td className="p-4 font-bold text-foreground">{formatPrice(Number(service.price))}</td>
+                      <td className="p-4 text-center">
+                        <Badge
+                          variant={service.is_available ? "default" : "outline"}
+                          className={`cursor-pointer uppercase text-[9px] py-0.5 px-2 select-none ${
+                            service.is_available
+                              ? "bg-green-500/10 text-green-600 hover:bg-green-500/20 border-green-500/20"
+                              : "bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border-amber-500/20"
+                          }`}
+                          onClick={() => toggleAvailability(service)}
+                        >
+                          {service.is_available ? "Active" : "Hidden"}
+                        </Badge>
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button variant="outline" size="sm" className="h-8 px-2.5" onClick={() => openEditForm(service)}>
+                            <Edit className="h-3.5 w-3.5 mr-1" /> Edit
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="sm" className="h-8 px-2.5">
+                                <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>{t('admin.delete_dialog_title')}</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  {t('admin.delete_dialog_description', { name: service.name_en })}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>{t('admin.cancel')}</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDelete(service.id)}>{t('admin.delete')}</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredServices.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-center p-8 text-muted-foreground">
+                        No service items found for this category.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+      </div>
+    );
+  };
+
+  const renderDesktopOrdersTab = () => {
+    const pendingOrders = orders.filter(o => o.status === 'pending');
+    const completedOrders = orders.filter(o => o.status !== 'pending');
+
+    return (
+      <div className="space-y-6 animate-in fade-in duration-300">
+        {roomLoading && <div className="text-center text-muted-foreground">{t('messages.loading')}</div>}
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Column 1: Pending Queue */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b pb-2">
+              <h3 className="font-bold text-base flex items-center gap-2 text-foreground">
+                <Clock className="h-4 w-4 text-blue-500" /> Pending Queue
+              </h3>
+              <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 font-bold">
+                {pendingOrders.length} Orders
+              </Badge>
+            </div>
+            
+            {pendingOrders.length === 0 && (
+              <div className="bg-card p-12 rounded-xl border border-dashed text-center text-muted-foreground text-sm">
+                No pending orders in the queue.
+              </div>
+            )}
+            
+            <div className="space-y-4">
+              {pendingOrders.map((order) => (
+                <Card key={order.id} className="border-blue-500/30 bg-blue-500/5 hover:shadow-sm transition-shadow">
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-base font-bold">Room {order.room_number}</CardTitle>
+                        <p className="text-[10px] text-muted-foreground">{new Date(order.created_at).toLocaleString()}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-primary">{formatPrice(order.total_price)}</p>
+                        <p className="text-[10px] text-muted-foreground">{order.items.length} items</p>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pb-3">
+                    <div className="space-y-2 mt-1">
+                      {order.items.map((item, idx) => (
+                        <div key={idx} className="flex justify-between text-xs py-1 border-b border-dashed last:border-0 border-border/50">
+                          <span className="font-medium">{item.quantity}x {item.name_en}</span>
+                          <span className="text-muted-foreground">{(item.price * item.quantity).toLocaleString()} ETB</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                  <div className="px-6 pb-4 flex gap-2">
+                    <Button size="sm" className="flex-1 gap-1" onClick={() => updateOrderStatus(order.id, 'completed')}>
+                      <CheckCircle className="w-3.5 h-3.5" /> Complete Order
+                    </Button>
+                    <Button size="sm" variant="outline" className="bg-background" onClick={() => updateOrderStatus(order.id, 'cancelled')}>
+                      Cancel
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Column 2: Completed History */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b pb-2">
+              <h3 className="font-bold text-base flex items-center gap-2 text-foreground">
+                <CheckCircle className="h-4 w-4 text-green-500" /> Completed & Log
+              </h3>
+              <Badge variant="outline" className="bg-zinc-100 dark:bg-zinc-800 text-muted-foreground">
+                {completedOrders.length} Total
+              </Badge>
+            </div>
+            
+            {completedOrders.length === 0 && (
+              <div className="bg-card p-12 rounded-xl border border-dashed text-center text-muted-foreground text-sm">
+                No archived orders.
+              </div>
+            )}
+            
+            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+              {completedOrders.map((order) => (
+                <Card key={order.id} className="opacity-75 hover:opacity-100 transition-opacity">
+                  <CardContent className="py-3">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm">Room {order.room_number}</span>
+                          <Badge variant={order.status === 'completed' ? 'default' : 'destructive'} className="text-[8px] h-4 leading-none uppercase font-bold">
+                            {order.status}
+                          </Badge>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">{new Date(order.created_at).toLocaleString()}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-xs">{formatPrice(order.total_price)}</p>
+                        <p className="text-[9px] text-muted-foreground">{order.items.length} items</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderDesktopCallsTab = () => {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-300">
+        {roomLoading && <div className="text-center text-muted-foreground">{t('messages.loading')}</div>}
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {calls.map((call) => (
+            <Card key={call.id} className={`transition-all hover:shadow-md ${call.status === 'pending' ? 'border-amber-500/40 bg-amber-500/5' : 'opacity-70'}`}>
+              <CardContent className="py-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-3 rounded-full ${call.status === 'pending' ? 'bg-amber-500/20 animate-pulse' : 'bg-muted'}`}>
+                      <BellRing className={`h-6 w-6 ${call.status === 'pending' ? 'text-amber-500' : 'text-muted-foreground'}`} />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-base">Room {call.room_number}</h4>
+                      <p className="text-xs text-muted-foreground">{new Date(call.created_at).toLocaleString()}</p>
+                    </div>
+                  </div>
+                  {call.status === 'pending' ? (
+                    <Button size="sm" onClick={() => updateCallStatus(call.id, 'completed')} className="bg-amber-500 hover:bg-amber-600 text-white border-0 font-semibold shadow-sm">
+                      Resolve Call
+                    </Button>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px] py-1 border-green-500/30 text-green-600 bg-green-500/5 uppercase font-bold">Resolved</Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          {calls.length === 0 && (
+            <div className="col-span-full bg-card p-12 rounded-xl border border-dashed text-center text-muted-foreground text-sm">
+              No service or waiter calls listed.
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderDesktopFeedbackTab = () => {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-300">
+        {feedbackLoading && <div className="text-center text-muted-foreground">{t('messages.loading')}</div>}
+        {feedbackError && <div className="text-destructive text-center">{feedbackError}</div>}
+        
+        {!feedbackLoading && !feedbackError && feedback.length === 0 && (
+          <div className="bg-card p-12 rounded-xl border border-dashed text-center">
+            <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-40" />
+            <h3 className="text-base font-bold text-foreground mb-1">{t('admin.no_feedback_title')}</h3>
+            <p className="text-sm text-muted-foreground">{t('admin.no_feedback_description')}</p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {feedback.map((item) => (
+            <Card key={item.id} className="hover:shadow-md transition-shadow flex flex-col justify-between h-[180px]">
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className="text-sm font-bold text-foreground truncate max-w-[200px]">
+                      {t('admin.feedback_on', { category: item.service_name || item.category })}
+                    </CardTitle>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      By {item.username || t('admin.anonymous')}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded-full">
+                    <span className="font-bold text-xs">{item.rating}</span>
+                    <Star className="h-3.5 w-3.5 fill-current" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1 overflow-y-auto">
+                <p className="text-xs text-foreground italic">"{item.comment}"</p>
+              </CardContent>
+              <div className="px-6 py-3 border-t bg-muted/10 text-[10px] text-muted-foreground flex justify-between">
+                <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                <span>{new Date(item.created_at).toLocaleTimeString()}</span>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderDesktopQRCodesTab = () => {
+    const roomServices = services.filter(s => s.type === 'room');
+    
+    return (
+      <div className="space-y-6 animate-in fade-in duration-300">
+        {loading ? (
+           <div className="text-center text-muted-foreground">{t('messages.loading')}</div>
+        ) : roomServices.length === 0 ? (
+          <div className="text-center py-12 bg-card rounded-xl border border-dashed">
+            <QrCode className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-30" />
+            <p className="text-muted-foreground">No room catalog items found. Add some rooms to generate QR codes.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {roomServices.map((room) => {
+              const roomIdentifier = room.room_number || room.name_en;
+              const qrUrl = `https://royalhotelmenu.vercel.app/?mode=room&room=${encodeURIComponent(roomIdentifier)}`;
+              return (
+                <div key={room.id} className="bg-card border p-6 rounded-xl flex flex-col items-center text-center shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="outline" size="sm" className="h-7 text-[10px] shadow-sm bg-background" onClick={() => {
+                          navigator.clipboard.writeText(qrUrl);
+                          toast.success("URL copied to clipboard");
+                      }}>Copy Link</Button>
+                  </div>
+                  
+                  <h3 className="font-bold text-base mb-1 truncate w-full px-2">{room.name_en}</h3>
+                  {room.room_number && (
+                      <Badge variant="secondary" className="mb-4 text-[10px] py-0">Room {room.room_number}</Badge>
+                  )}
+                  <div className="bg-white p-3 rounded-lg border mb-3 shadow-inner">
+                    <QRCode id={`qr-svg-${roomIdentifier}`} value={qrUrl} size={140} />
+                  </div>
+                  <p className="text-[9px] text-muted-foreground break-all mb-4 px-2 line-clamp-2 min-h-[30px]">{qrUrl}</p>
+                  <Button variant="default" className="w-full font-bold h-9 text-xs" onClick={() => downloadQR(roomIdentifier)}>
+                    Download PNG
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (!isAnyAdmin()) {
     return (
-        <div className="bg-background flex max-w-[480px] w-full flex-col items-center justify-center mx-auto min-h-screen">
-            <p>{t('messages.loading')}</p>
-        </div>
-    )
+      <div className="bg-background flex max-w-[480px] w-full flex-col items-center justify-center mx-auto min-h-screen">
+        <p>{t('messages.loading')}</p>
+      </div>
+    );
   }
 
   return (
-    <div className="bg-background flex max-w-[480px] w-full flex-col overflow-hidden items-center mx-auto pt-4 min-h-screen">
-      <Header />
-      <main className="flex flex-col w-full flex-1 px-6 py-6 pb-24">
-        {/* Master Details Routing */}
-        {!activeTab ? (
-          <div className="animate-in fade-in zoom-in-95 duration-500">
-            <div className="flex items-center justify-between mb-6 gap-2">
-              <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row">
+      {/* Sidebar for Desktop */}
+      <aside className="hidden md:flex md:w-64 lg:w-72 flex-col border-r border-border bg-card p-6 min-h-screen sticky top-0 shrink-0 select-none">
+        <div className="flex items-center gap-2 mb-8 px-2">
+          <div className="w-8 h-8 rounded-lg bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center">
+            <Utensils className="h-4.5 w-4.5 text-background" />
+          </div>
+          <div>
+            <h1 className="font-bold text-base leading-none text-foreground tracking-tight">Royal Home</h1>
+            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Admin Portal</span>
+          </div>
+        </div>
+
+        {/* User Card */}
+        <div className="mb-6 p-4 rounded-xl bg-muted/40 border border-border/50">
+          <p className="text-xs font-semibold text-foreground truncate">{user?.username || 'Administrator'}</p>
+          <p className="text-[10px] text-muted-foreground truncate mb-2">{user?.email}</p>
+          <div className="inline-block bg-zinc-900 dark:bg-zinc-100 text-background px-2.5 py-0.5 rounded-full text-[9px] font-bold">
+            {getRoleBadgeLabel()}
+          </div>
+        </div>
+
+        {/* Navigation Tabs */}
+        <nav className="flex-1 space-y-1">
+          {allowedTabs.includes('services') && (
+            <button
+              onClick={() => setActiveTab('services')}
+              className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium transition-all ${
+                activeTab === 'services'
+                  ? 'bg-zinc-950 text-white dark:bg-zinc-50 dark:text-zinc-950'
+                  : 'hover:bg-accent hover:text-foreground text-muted-foreground'
+              }`}
+            >
+              <Utensils className="h-4 w-4 shrink-0" />
+              <span>Manage Services</span>
+            </button>
+          )}
+          {allowedTabs.includes('orders') && (
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium transition-all ${
+                activeTab === 'orders'
+                  ? 'bg-zinc-950 text-white dark:bg-zinc-50 dark:text-zinc-950'
+                  : 'hover:bg-accent hover:text-foreground text-muted-foreground'
+              }`}
+            >
+              <ShoppingBag className="h-4 w-4 shrink-0" />
+              <span>Orders Queue</span>
+              {orders.filter(o => o.status === 'pending').length > 0 && (
+                <span className="ml-auto w-5 h-5 rounded-full bg-blue-500 text-white text-[9px] font-bold flex items-center justify-center">
+                  {orders.filter(o => o.status === 'pending').length}
+                </span>
+              )}
+            </button>
+          )}
+          {allowedTabs.includes('calls') && (
+            <button
+              onClick={() => setActiveTab('calls')}
+              className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium transition-all ${
+                activeTab === 'calls'
+                  ? 'bg-zinc-950 text-white dark:bg-zinc-50 dark:text-zinc-950'
+                  : 'hover:bg-accent hover:text-foreground text-muted-foreground'
+              }`}
+            >
+              <Bell className="h-4 w-4 shrink-0" />
+              <span>Waiter Calls</span>
+              {calls.filter(c => c.status === 'pending').length > 0 && (
+                <span className="ml-auto w-5 h-5 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center">
+                  {calls.filter(c => c.status === 'pending').length}
+                </span>
+              )}
+            </button>
+          )}
+          {allowedTabs.includes('qrcodes') && (
+            <button
+              onClick={() => setActiveTab('qrcodes')}
+              className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium transition-all ${
+                activeTab === 'qrcodes'
+                  ? 'bg-zinc-950 text-white dark:bg-zinc-50 dark:text-zinc-950'
+                  : 'hover:bg-accent hover:text-foreground text-muted-foreground'
+              }`}
+            >
+              <QrCode className="h-4 w-4 shrink-0" />
+              <span>QR Code Generator</span>
+            </button>
+          )}
+          {allowedTabs.includes('feedback') && (
+            <button
+              onClick={() => setActiveTab('feedback')}
+              className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium transition-all ${
+                activeTab === 'feedback'
+                  ? 'bg-zinc-950 text-white dark:bg-zinc-50 dark:text-zinc-950'
+                  : 'hover:bg-accent hover:text-foreground text-muted-foreground'
+              }`}
+            >
+              <MessageSquare className="h-4 w-4 shrink-0" />
+              <span>Customer Feedback</span>
+            </button>
+          )}
+        </nav>
+
+        {/* Footer Actions */}
+        <div className="pt-4 border-t border-border mt-auto space-y-1">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium hover:bg-accent hover:text-foreground text-muted-foreground transition-all"
+          >
+            <ChevronLeft className="h-4 w-4 shrink-0" />
+            <span>Go to Portal</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Container */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile Layout Wrapper */}
+        <div className="md:hidden bg-background flex max-w-[480px] w-full flex-col overflow-hidden items-center mx-auto pt-4 min-h-screen">
+          <Header />
+          <main className="flex flex-col w-full flex-1 px-6 py-6 pb-24">
+            {/* Master Details Routing */}
+            {!activeTab ? (
+              <div className="animate-in fade-in zoom-in-95 duration-500">
+                <div className="flex items-center justify-between mb-6 gap-2">
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => navigate('/profile')} 
+                      className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/20 transition-colors border border-border/50 shrink-0"
+                    >
+                      <ChevronLeft className="w-5 h-5 text-foreground" />
+                    </button>
+                    <h1 className="text-2xl font-bold text-foreground leading-none">{t('admin.title')}</h1>
+                  </div>
+                  <div className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 px-3 py-1 rounded-full text-[10px] font-medium whitespace-nowrap">
+                    {getRoleBadgeLabel()}
+                  </div>
+                </div>
+                
+                <h2 className="text-[10px] font-bold text-muted-foreground mb-2 uppercase tracking-widest px-1 mt-4">Menu</h2>
+                <div className="bg-card rounded-2xl border border-border/50 overflow-hidden mb-5 shadow-sm">
+                  {/* Rows */}
+                  {allowedTabs.includes('services') && (
+                    <button onClick={() => setActiveTab('services')} className="flex items-center gap-4 px-4 py-3.5 w-full hover:bg-accent/50 transition-colors border-b border-border/40">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                        <Utensils className="h-4 w-4 text-emerald-500" />
+                      </div>
+                      <span className="flex-1 text-sm font-medium text-foreground text-left">Manage Services</span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  )}
+                  {allowedTabs.includes('orders') && (
+                    <button onClick={() => setActiveTab('orders')} className="flex items-center gap-4 px-4 py-3.5 w-full hover:bg-accent/50 transition-colors border-b border-border/40">
+                      <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                        <ShoppingBag className="h-4 w-4 text-blue-500" />
+                      </div>
+                      <span className="flex-1 text-sm font-medium text-foreground text-left">Orders</span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  )}
+                  {allowedTabs.includes('calls') && (
+                    <button onClick={() => setActiveTab('calls')} className="flex items-center gap-4 px-4 py-3.5 w-full hover:bg-accent/50 transition-colors border-b border-border/40">
+                      <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                        <Bell className="h-4 w-4 text-amber-500" />
+                      </div>
+                      <span className="flex-1 text-sm font-medium text-foreground text-left">Calls</span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  )}
+                  {allowedTabs.includes('qrcodes') && (
+                    <button onClick={() => setActiveTab('qrcodes')} className="flex items-center gap-4 px-4 py-3.5 w-full hover:bg-accent/50 transition-colors border-b border-border/40">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+                        <QrCode className="h-4 w-4 text-indigo-500" />
+                      </div>
+                      <span className="flex-1 text-sm font-medium text-foreground text-left">QR Codes</span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  )}
+                  {allowedTabs.includes('feedback') && (
+                    <button onClick={() => setActiveTab('feedback')} className="flex items-center gap-4 px-4 py-3.5 w-full hover:bg-accent/50 transition-colors">
+                      <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                        <MessageSquare className="h-4 w-4 text-purple-500" />
+                      </div>
+                      <span className="flex-1 text-sm font-medium text-foreground text-left">Feedback</span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="animate-in slide-in-from-right-4 fade-in duration-500">
                 <button 
-                  onClick={() => navigate('/profile')} 
-                  className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/20 transition-colors border border-border/50 shrink-0"
+                  onClick={() => setActiveTab(null)} 
+                  className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center mb-6 hover:bg-black/10 dark:hover:bg-white/20 transition-colors border border-border/50"
                 >
                   <ChevronLeft className="w-5 h-5 text-foreground" />
                 </button>
-                <h1 className="text-2xl font-bold text-foreground leading-none">{t('admin.title')}</h1>
+                {activeTab === "services" && renderServicesTab()}
+                {activeTab === "orders" && renderOrdersTab()}
+                {activeTab === "calls" && renderCallsTab()}
+                {activeTab === "feedback" && renderFeedbackTab()}
+                {activeTab === "qrcodes" && renderQRCodesTab()}
               </div>
-              <div className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 px-3 py-1 rounded-full text-[10px] font-medium whitespace-nowrap">
-                {getRoleBadgeLabel()}
-              </div>
+            )}
+          </main>
+          <BottomNavigation />
+        </div>
+
+        {/* Desktop Layout Wrapper */}
+        <main className="hidden md:flex flex-col flex-1 p-8 lg:p-10 w-full max-w-7xl mx-auto">
+          {/* HEADER SECTION */}
+          <div className="flex items-center justify-between mb-8 pb-4 border-b">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground capitalize">
+                {activeTab ? activeTab.replace('qrcodes', 'QR Codes').replace('feedback', 'Customer Feedback') : 'Overview Dashboard'}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                {activeTab ? `Manage and view active ${activeTab} configurations.` : 'Real-time overview of hotel and restaurant services.'}
+              </p>
             </div>
-            
-            <h2 className="text-[10px] font-bold text-muted-foreground mb-2 uppercase tracking-widest px-1 mt-4">Menu</h2>
-            <div className="bg-card rounded-2xl border border-border/50 overflow-hidden mb-5 shadow-sm">
-              {/* Rows */}
-              {allowedTabs.includes('services') && (
-                <button onClick={() => setActiveTab('services')} className="flex items-center gap-4 px-4 py-3.5 w-full hover:bg-accent/50 transition-colors border-b border-border/40">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                    <Utensils className="h-4 w-4 text-emerald-500" />
+            {activeTab === 'services' && allowedServiceTypes.length > 0 && (
+              <Button onClick={openAddForm} className="gap-2 font-bold shadow-md">
+                <Plus className="h-4 w-4" /> Add New Item
+              </Button>
+            )}
+            {activeTab && (
+              <Button variant="outline" size="sm" onClick={() => setActiveTab(null)} className="h-9">
+                Back to Overview
+              </Button>
+            )}
+          </div>
+
+          {/* METRICS DASHBOARD GRID */}
+          {!activeTab && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              {/* Active Calls */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Active Calls</CardTitle>
+                  <Bell className="h-4 w-4 text-amber-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{calls.filter(c => c.status === 'pending').length}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Guest waiter/room calls pending</p>
+                </CardContent>
+              </Card>
+
+              {/* Pending Orders */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pending Orders</CardTitle>
+                  <ShoppingBag className="h-4 w-4 text-blue-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{orders.filter(o => o.status === 'pending').length}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Room service orders to process</p>
+                </CardContent>
+              </Card>
+
+              {/* Average Feedback Rating */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Feedback Score</CardTitle>
+                  <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {feedback.length > 0
+                      ? (feedback.reduce((acc, f) => acc + f.rating, 0) / feedback.length).toFixed(1)
+                      : '0.0'} / 5
                   </div>
-                  <span className="flex-1 text-sm font-medium text-foreground text-left">Manage Services</span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </button>
-              )}
-              {allowedTabs.includes('orders') && (
-                <button onClick={() => setActiveTab('orders')} className="flex items-center gap-4 px-4 py-3.5 w-full hover:bg-accent/50 transition-colors border-b border-border/40">
-                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                    <ShoppingBag className="h-4 w-4 text-blue-500" />
-                  </div>
-                  <span className="flex-1 text-sm font-medium text-foreground text-left">Orders</span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </button>
-              )}
-              {allowedTabs.includes('calls') && (
-                <button onClick={() => setActiveTab('calls')} className="flex items-center gap-4 px-4 py-3.5 w-full hover:bg-accent/50 transition-colors border-b border-border/40">
-                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                    <Bell className="h-4 w-4 text-amber-500" />
-                  </div>
-                  <span className="flex-1 text-sm font-medium text-foreground text-left">Calls</span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </button>
-              )}
-              {allowedTabs.includes('qrcodes') && (
-                <button onClick={() => setActiveTab('qrcodes')} className="flex items-center gap-4 px-4 py-3.5 w-full hover:bg-accent/50 transition-colors border-b border-border/40">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center">
-                    <QrCode className="h-4 w-4 text-indigo-500" />
-                  </div>
-                  <span className="flex-1 text-sm font-medium text-foreground text-left">QR Codes</span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </button>
-              )}
-              {allowedTabs.includes('feedback') && (
-                <button onClick={() => setActiveTab('feedback')} className="flex items-center gap-4 px-4 py-3.5 w-full hover:bg-accent/50 transition-colors">
-                  <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                    <MessageSquare className="h-4 w-4 text-purple-500" />
-                  </div>
-                  <span className="flex-1 text-sm font-medium text-foreground text-left">Feedback</span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </button>
-              )}
+                  <p className="text-xs text-muted-foreground mt-1">Based on {feedback.length} customer reviews</p>
+                </CardContent>
+              </Card>
+
+              {/* Active Services count */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Active Catalog</CardTitle>
+                  <Utensils className="h-4 w-4 text-green-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{services.filter(s => s.is_available).length}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Available products in active menu</p>
+                </CardContent>
+              </Card>
             </div>
-          </div>
-        ) : (
-          <div className="animate-in slide-in-from-right-4 fade-in duration-500">
-            <button 
-              onClick={() => setActiveTab(null)} 
-              className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center mb-6 hover:bg-black/10 dark:hover:bg-white/20 transition-colors border border-border/50"
-            >
-              <ChevronLeft className="w-5 h-5 text-foreground" />
-            </button>
-            {activeTab === "services" && renderServicesTab()}
-            {activeTab === "orders" && renderOrdersTab()}
-            {activeTab === "calls" && renderCallsTab()}
-            {activeTab === "feedback" && renderFeedbackTab()}
-            {activeTab === "qrcodes" && renderQRCodesTab()}
-          </div>
-        )}
-      </main>
-      <BottomNavigation />
+          )}
+
+          {/* DASHBOARD SUMMARY SECTIONS */}
+          {!activeTab && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-20">
+              {/* Active Calls List */}
+              <Card className="flex flex-col h-[400px]">
+                <CardHeader className="border-b pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider">Active Waiter Calls</CardTitle>
+                    <Badge variant="outline">{calls.filter(c => c.status === 'pending').length} pending</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-y-auto py-4">
+                  {calls.filter(c => c.status === 'pending').length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm">
+                      <CheckCircle className="h-8 w-8 text-green-500 mb-2" />
+                      All calls resolved!
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {calls.filter(c => c.status === 'pending').slice(0, 5).map(call => (
+                        <div key={call.id} className="flex justify-between items-center p-3 rounded-lg border bg-muted/20">
+                          <div>
+                            <p className="font-bold text-sm">Room {call.room_number}</p>
+                            <p className="text-[10px] text-muted-foreground">{new Date(call.created_at).toLocaleTimeString()}</p>
+                          </div>
+                          <Button size="sm" onClick={() => updateCallStatus(call.id, 'completed')}>Resolve</Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Pending Orders List */}
+              <Card className="flex flex-col h-[400px]">
+                <CardHeader className="border-b pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider">Recent Orders</CardTitle>
+                    <Badge variant="outline">{orders.filter(o => o.status === 'pending').length} pending</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-y-auto py-4">
+                  {orders.filter(o => o.status === 'pending').length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm">
+                      <ShoppingBag className="h-8 w-8 text-blue-500 mb-2 opacity-40" />
+                      No pending orders
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {orders.filter(o => o.status === 'pending').slice(0, 5).map(order => (
+                        <div key={order.id} className="p-3 rounded-lg border bg-muted/20 space-y-2">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="font-bold text-sm">Room {order.room_number}</p>
+                              <p className="text-[10px] text-muted-foreground">{new Date(order.created_at).toLocaleTimeString()}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-xs text-primary">{formatPrice(order.total_price)}</p>
+                              <p className="text-[9px] text-muted-foreground">{order.items.length} items</p>
+                            </div>
+                          </div>
+                          <div className="text-xs text-muted-foreground border-t pt-1 border-dashed">
+                            {order.items.map((it, i) => `${it.quantity}x ${it.name_en}`).join(', ')}
+                          </div>
+                          <div className="flex gap-2 justify-end pt-1">
+                            <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => updateOrderStatus(order.id, 'cancelled')}>Cancel</Button>
+                            <Button size="sm" className="h-7 text-[10px]" onClick={() => updateOrderStatus(order.id, 'completed')}>Complete</Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* TAB DETAILED CONTENTS */}
+          {activeTab === 'services' && renderDesktopServicesTab()}
+          {activeTab === 'orders' && renderDesktopOrdersTab()}
+          {activeTab === 'calls' && renderDesktopCallsTab()}
+          {activeTab === 'feedback' && renderDesktopFeedbackTab()}
+          {activeTab === 'qrcodes' && renderDesktopQRCodesTab()}
+        </main>
+      </div>
     </div>
   );
 };
