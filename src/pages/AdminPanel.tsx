@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import QRCode from "react-qr-code";
-import { MessageSquare, Plus, Star, Trash2, Edit, X, Clock, ShoppingBag, CheckCircle, BellRing, Eye, EyeOff, QrCode, ChevronRight, ChevronLeft, Bell, Utensils } from "lucide-react";
+import { LayoutDashboard, Search, MessageSquare, Plus, Star, Trash2, Edit, X, Clock, ShoppingBag, CheckCircle, BellRing, Eye, EyeOff, QrCode, ChevronRight, ChevronLeft, Bell, Utensils } from "lucide-react";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { toast } from "sonner";
 import { useUser, type AdminRole } from "@/contexts/UserContext";
@@ -76,6 +76,8 @@ const AdminPanel = () => {
 
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [serviceCategory, setServiceCategory] = useState((userRole === 'admin' ? 'food' : allowedServiceTypes[0]) || 'food');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   // Queries
   const { data: services = [], isLoading: servicesLoading, error: servicesError } = useServices(true);
@@ -280,7 +282,7 @@ const AdminPanel = () => {
 
 
 
-  // Filter services based on admin role and category
+  // Filter services based on admin role, category, search query, and availability status
   const filteredServices = useMemo(() => {
     let list = services;
     if (userRole !== 'admin') {
@@ -289,8 +291,22 @@ const AdminPanel = () => {
     if (serviceCategory !== 'all') {
       list = list.filter(s => s.type === serviceCategory);
     }
+    if (searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase().trim();
+      list = list.filter(s => 
+        s.name_en.toLowerCase().includes(query) || 
+        (s.name_am && s.name_am.toLowerCase().includes(query)) ||
+        (s.name_om && s.name_om.toLowerCase().includes(query)) ||
+        (s.description_en && s.description_en.toLowerCase().includes(query))
+      );
+    }
+    if (statusFilter === 'available') {
+      list = list.filter(s => s.is_available);
+    } else if (statusFilter === 'hidden') {
+      list = list.filter(s => !s.is_available);
+    }
     return list;
-  }, [services, userRole, allowedServiceTypes, serviceCategory]);
+  }, [services, userRole, allowedServiceTypes, serviceCategory, searchQuery, statusFilter]);
 
   const formTitle = useMemo(() => editingService ? t('admin.form_edit_title') : t('admin.form_add_title'), [editingService, t]);
 
@@ -304,6 +320,30 @@ const AdminPanel = () => {
       default: return 'Admin';
     }
   };
+
+  const renderSearchAndFilterControls = () => (
+    <div className="flex flex-col sm:flex-row gap-3 my-2 animate-in fade-in duration-300">
+      <div className="relative flex-1">
+        <Input
+          placeholder="Search items by name, description..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9 bg-background/50"
+        />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      </div>
+      <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <SelectTrigger className="w-full sm:w-[180px] bg-background/50">
+          <SelectValue placeholder="Filter by status" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Statuses</SelectItem>
+          <SelectItem value="available">Available Only</SelectItem>
+          <SelectItem value="hidden">Hidden Only</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
 
   const renderServicesTab = () => (
     <div className="space-y-6 animate-in fade-in zoom-in duration-500">
@@ -321,10 +361,17 @@ const AdminPanel = () => {
         />
       </div>
 
+      {renderSearchAndFilterControls()}
+
       <div className="mt-4 pb-20">
         {loading && <div>{t('messages.loading')}</div>}
         {error && <div className="text-red-500">{error}</div>}
-        {!loading && !error && (
+        {!loading && !error && filteredServices.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground bg-muted/10 rounded-xl border border-dashed">
+            No matching services found.
+          </div>
+        )}
+        {!loading && !error && filteredServices.length > 0 && (
           <ul className="space-y-3">
             {filteredServices.map((service) => (
               <li 
@@ -828,6 +875,8 @@ const AdminPanel = () => {
           />
         </div>
 
+        {renderSearchAndFilterControls()}
+
         {loading ? (
           <div className="text-center py-12 text-muted-foreground">{t('messages.loading')}</div>
         ) : error ? (
@@ -1199,6 +1248,17 @@ const AdminPanel = () => {
 
         {/* Navigation Tabs */}
         <nav className="flex-1 space-y-1">
+          <button
+            onClick={() => setActiveTab(null)}
+            className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium transition-all ${
+              activeTab === null
+                ? 'bg-zinc-950 text-white dark:bg-zinc-50 dark:text-zinc-950'
+                : 'hover:bg-accent hover:text-foreground text-muted-foreground'
+            }`}
+          >
+            <LayoutDashboard className="h-4 w-4 shrink-0" />
+            <span>Overview Dashboard</span>
+          </button>
           {allowedTabs.includes('services') && (
             <button
               onClick={() => setActiveTab('services')}
