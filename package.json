@@ -9,7 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "server": "php -c php.ini -S localhost:8000 -t public"
+    "server": "tsx local-server.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
