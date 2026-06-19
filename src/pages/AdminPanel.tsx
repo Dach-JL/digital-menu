@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import QRCode from "react-qr-code";
-import { LayoutDashboard, Search, MessageSquare, Plus, Star, Trash2, Edit, X, Clock, ShoppingBag, CheckCircle, BellRing, Eye, EyeOff, QrCode, ChevronRight, ChevronLeft, Bell, Utensils } from "lucide-react";
+import { LayoutDashboard, Search, MessageSquare, Plus, Star, Trash2, Edit, X, Clock, ShoppingBag, CheckCircle, BellRing, Eye, EyeOff, QrCode, ChevronRight, ChevronLeft, Bell, Utensils, Bed } from "lucide-react";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { toast } from "sonner";
 import { useUser, type AdminRole } from "@/contexts/UserContext";
@@ -1644,31 +1644,31 @@ const AdminPanel = () => {
                 </CardContent>
               </Card>
 
-              {/* Average Feedback Rating */}
+              {/* Active Menu items count */}
               <Card className="hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Feedback Score</CardTitle>
-                  <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {feedback.length > 0
-                      ? (feedback.reduce((acc, f) => acc + f.rating, 0) / feedback.length).toFixed(1)
-                      : '0.0'} / 5
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Based on {feedback.length} customer reviews</p>
-                </CardContent>
-              </Card>
-
-              {/* Active Services count */}
-              <Card className="hover:shadow-md transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Active Catalog</CardTitle>
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Active Menu</CardTitle>
                   <Utensils className="h-4 w-4 text-green-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{services.filter(s => s.is_available).length}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Available products in active menu</p>
+                  <div className="text-2xl font-bold">
+                    {services.filter(s => (s.type === 'food' || s.type === 'drink') && s.is_available).length}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Available food & drink items</p>
+                </CardContent>
+              </Card>
+
+              {/* Active Rooms count */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Active Rooms</CardTitle>
+                  <Bed className="h-4 w-4 text-blue-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {services.filter(s => s.type === 'room' && s.is_available).length}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Available active room services</p>
                 </CardContent>
               </Card>
             </div>
