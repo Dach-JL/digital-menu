@@ -78,6 +78,14 @@ const AdminPanel = () => {
   const [serviceCategory, setServiceCategory] = useState((userRole === 'admin' ? 'food' : allowedServiceTypes[0]) || 'food');
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [subcategoryFilter, setSubcategoryFilter] = useState("all");
+  const [maxPriceFilter, setMaxPriceFilter] = useState("");
+  const [sortBy, setSortBy] = useState("newest");
+
+  // Reset subcategory filter when the main category tab changes
+  useEffect(() => {
+    setSubcategoryFilter("all");
+  }, [serviceCategory]);
 
   // Queries
   const { data: services = [], isLoading: servicesLoading, error: servicesError } = useServices(true);
@@ -282,15 +290,45 @@ const AdminPanel = () => {
 
 
 
-  // Filter services based on admin role, category, search query, and availability status
+  // Dynamic subcategory options based on services present in current category
+  const subcategoryOptions = useMemo(() => {
+    const uniqueSubcats = new Set<string>();
+    services.forEach(s => {
+      const matchCategory = serviceCategory === 'all' || s.type === serviceCategory;
+      if (matchCategory && s.subcategory) {
+        uniqueSubcats.add(s.subcategory);
+      }
+    });
+    return Array.from(uniqueSubcats).sort();
+  }, [services, serviceCategory]);
+
+  // Filter and sort services based on admin role, category, search query, status, subcategory, price, and sorting selections
   const filteredServices = useMemo(() => {
-    let list = services;
+    let list = [...services];
+    
+    // 1. Role-based filter
     if (userRole !== 'admin') {
       list = list.filter(s => allowedServiceTypes.includes(s.type));
     }
+    
+    // 2. Category tab filter
     if (serviceCategory !== 'all') {
       list = list.filter(s => s.type === serviceCategory);
     }
+    
+    // 3. Subcategory filter
+    if (subcategoryFilter !== 'all') {
+      list = list.filter(s => s.subcategory === subcategoryFilter);
+    }
+    
+    // 4. Status filter
+    if (statusFilter === 'available') {
+      list = list.filter(s => s.is_available);
+    } else if (statusFilter === 'hidden') {
+      list = list.filter(s => !s.is_available);
+    }
+    
+    // 5. Search query filter
     if (searchQuery.trim() !== '') {
       const query = searchQuery.toLowerCase().trim();
       list = list.filter(s => 
@@ -300,13 +338,32 @@ const AdminPanel = () => {
         (s.description_en && s.description_en.toLowerCase().includes(query))
       );
     }
-    if (statusFilter === 'available') {
-      list = list.filter(s => s.is_available);
-    } else if (statusFilter === 'hidden') {
-      list = list.filter(s => !s.is_available);
+    
+    // 6. Max Price filter
+    if (maxPriceFilter.trim() !== '') {
+      const maxVal = parseFloat(maxPriceFilter);
+      if (!isNaN(maxVal)) {
+        list = list.filter(s => Number(s.price) <= maxVal);
+      }
     }
+    
+    // 7. Sorting
+    list.sort((a, b) => {
+      if (sortBy === 'price_asc') {
+        return Number(a.price) - Number(b.price);
+      }
+      if (sortBy === 'price_desc') {
+        return Number(b.price) - Number(a.price);
+      }
+      if (sortBy === 'name_asc') {
+        return a.name_en.localeCompare(b.name_en);
+      }
+      // default: newest first (descending ID/creation)
+      return b.id - a.id;
+    });
+    
     return list;
-  }, [services, userRole, allowedServiceTypes, serviceCategory, searchQuery, statusFilter]);
+  }, [services, userRole, allowedServiceTypes, serviceCategory, subcategoryFilter, statusFilter, searchQuery, maxPriceFilter, sortBy]);
 
   const formTitle = useMemo(() => editingService ? t('admin.form_edit_title') : t('admin.form_add_title'), [editingService, t]);
 
@@ -322,26 +379,79 @@ const AdminPanel = () => {
   };
 
   const renderSearchAndFilterControls = () => (
-    <div className="flex flex-col sm:flex-row gap-3 my-2 animate-in fade-in duration-300">
-      <div className="relative flex-1">
-        <Input
-          placeholder="Search items by name, description..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9 bg-background/50"
-        />
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+    <div className="space-y-3 my-4 p-4 bg-muted/20 rounded-xl border border-border/40 animate-in fade-in duration-300">
+      <div className="flex flex-col md:flex-row gap-3">
+        <div className="relative flex-1">
+          <Input
+            placeholder="Search items by name, description..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 bg-background"
+          />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        </div>
       </div>
-      <Select value={statusFilter} onValueChange={setStatusFilter}>
-        <SelectTrigger className="w-full sm:w-[180px] bg-background/50">
-          <SelectValue placeholder="Filter by status" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Statuses</SelectItem>
-          <SelectItem value="available">Available Only</SelectItem>
-          <SelectItem value="hidden">Hidden Only</SelectItem>
-        </SelectContent>
-      </Select>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        {/* Status Filter */}
+        <div className="space-y-1">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Status</span>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="bg-background">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="available">Available Only</SelectItem>
+              <SelectItem value="hidden">Hidden Only</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Subcategory Filter */}
+        <div className="space-y-1">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Subcategory</span>
+          <Select value={subcategoryFilter} onValueChange={setSubcategoryFilter}>
+            <SelectTrigger className="bg-background">
+              <SelectValue placeholder="All Subcategories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Subcategories</SelectItem>
+              {subcategoryOptions.map(opt => (
+                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Max Price Filter */}
+        <div className="space-y-1">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Max Price (ETB)</span>
+          <Input
+            type="number"
+            placeholder="No limit"
+            value={maxPriceFilter}
+            onChange={(e) => setMaxPriceFilter(e.target.value)}
+            className="bg-background"
+            min="0"
+          />
+        </div>
+
+        {/* Sort By */}
+        <div className="space-y-1">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Sort By</span>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="bg-background">
+              <SelectValue placeholder="Default (Newest)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Default (Newest)</SelectItem>
+              <SelectItem value="price_asc">Price: Low to High</SelectItem>
+              <SelectItem value="price_desc">Price: High to Low</SelectItem>
+              <SelectItem value="name_asc">Name: A to Z</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
     </div>
   );
 
