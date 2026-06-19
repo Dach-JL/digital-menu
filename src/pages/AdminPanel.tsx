@@ -20,61 +20,11 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { foodSubcategories, drinkSubcategories } from "@/constants/categories";
-import {
-  getCachedAdminServices, setCachedAdminServices, invalidateCachedAdminServices,
-  getCachedAdminFeedback, setCachedAdminFeedback,
-  getCachedAdminOrders, setCachedAdminOrders,
-  getCachedAdminCalls, setCachedAdminCalls,
-} from '@/lib/pageCache';
-import { pusherClient } from '@/config/pusher';
-
-// Updated Service type
-interface Service {
-  id: number;
-  name_en: string;
-  description_en: string;
-  price: string;
-  type: string;
-  image_url: string;
-  ingredients: string; // JSON string
-  macro_kcal: number | null;
-  macro_protein: number | null;
-  macro_fat: number | null;
-  macro_carbs: number | null;
-  beds: number | null;
-  max_guests: number | null;
-  room_number: string | null;
-  subcategory?: string | null;
-  is_available: boolean;
-}
-
-interface Feedback {
-  id: number;
-  comment: string;
-  rating: number;
-  created_at: string;
-  category: string;
-  username: string | null;
-  service_name: string | null;
-}
-
+import { invalidateCachedAdminServices } from '@/lib/pageCache';
 import { subscribeToNotifications } from "@/lib/firebase";
-
-interface RoomOrder {
-  id: number;
-  room_number: string;
-  total_price: number;
-  status: 'pending' | 'completed' | 'cancelled';
-  created_at: string;
-  items: any[];
-}
-
-interface WaiterCall {
-  id: number;
-  room_number: string;
-  status: 'pending' | 'completed';
-  created_at: string;
-}
+import { useServiceStore, type Service } from "@/stores/serviceStore";
+import { useAdminQueueStore, type RoomOrder, type WaiterCall, type Feedback } from "@/stores/adminQueueStore";
+import { useShallow } from "zustand/shallow";
 
 // Define which tabs each role can see
 const ROLE_TABS: Record<string, string[]> = {
@@ -113,18 +63,43 @@ const AdminPanel = () => {
 
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [serviceCategory, setServiceCategory] = useState((userRole === 'admin' ? 'food' : allowedServiceTypes[0]) || 'food');
-  
-  const [services, setServices] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
-  const [feedback, setFeedback] = useState<Feedback[]>([]);
-  const [feedbackLoading, setFeedbackLoading] = useState(false);
-  const [feedbackError, setFeedbackError] = useState("");
+  const { services, loading, error, fetchServices, toggleAvailability, deleteService } = useServiceStore(
+    useShallow((state) => ({
+      services: state.services,
+      loading: state.loading,
+      error: state.error,
+      fetchServices: state.fetchServices,
+      toggleAvailability: state.toggleAvailability,
+      deleteService: state.deleteService,
+    }))
+  );
 
-  const [orders, setOrders] = useState<RoomOrder[]>([]);
-  const [calls, setCalls] = useState<WaiterCall[]>([]);
-  const [roomLoading, setRoomLoading] = useState(false);
+  const {
+    orders,
+    calls,
+    feedback,
+    roomLoading,
+    feedbackLoading,
+    feedbackError,
+    fetchRoomData,
+    fetchFeedback,
+    updateOrderStatus,
+    updateCallStatus,
+  } = useAdminQueueStore(
+    useShallow((state) => ({
+      orders: state.orders,
+      calls: state.calls,
+      feedback: state.feedback,
+      roomLoading: state.roomLoading,
+      feedbackLoading: state.feedbackLoading,
+      feedbackError: state.feedbackError,
+      fetchRoomData: state.fetchRoomData,
+      fetchFeedback: state.fetchFeedback,
+      updateOrderStatus: state.updateOrderStatus,
+      updateCallStatus: state.updateCallStatus,
+    }))
+  );
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
@@ -140,157 +115,6 @@ const AdminPanel = () => {
   const [ingredients, setIngredients] = useState<string[]>([""]);
   const [imageFile, setImageFile] = useState<File | null>(null);
 
-  // Play a dual-tone chime sound for new orders and calls (browser-native, no download required)
-  const playChime = () => {
-    try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const playNote = (freq: number, start: number, duration: number) => {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, start);
-        gain.gain.setValueAtTime(0.15, start);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start(start);
-        osc.stop(start + duration);
-      };
-      const now = audioCtx.currentTime;
-      playNote(587.33, now, 0.4);       // D5 note
-      playNote(880.00, now + 0.12, 0.6); // A5 note
-    } catch (e) {
-      console.error("Audio Context playback failed:", e);
-    }
-  };
-
-  // Real-time updates subscription via Pusher
-  useEffect(() => {
-    // 1. Subscribe to menu-updates
-    const menuChannel = pusherClient.subscribe('menu-updates');
-
-    menuChannel.bind('service-created', (newService: any) => {
-      let isNew = false;
-      setServices((prev) => {
-        if (prev.some((s) => String(s.id) === String(newService.id))) return prev;
-        isNew = true;
-        const updated = [newService, ...prev];
-        setCachedAdminServices(updated);
-        return updated;
-      });
-      // Only reload full database list if the new service was created by another session and we need the image
-      if (isNew) {
-        fetchServices(true);
-      }
-    });
-
-    menuChannel.bind('service-updated', (updatedService: any) => {
-      setServices((prev) => {
-        const updated = prev.map((s) => {
-          if (String(s.id) === String(updatedService.id)) {
-            return {
-              ...s,
-              ...updatedService,
-              // Reuse existing image if Pusher payload has stripped image_url
-              image_url: updatedService.image_url || s.image_url || ""
-            };
-          }
-          return s;
-        });
-        setCachedAdminServices(updated);
-        return updated;
-      });
-      // Removed fetchServices(true) to prevent massive image and database re-download
-    });
-
-    menuChannel.bind('service-deleted', (data: { id: number }) => {
-      setServices((prev) => {
-        const updated = prev.filter((s) => String(s.id) !== String(data.id));
-        setCachedAdminServices(updated);
-        return updated;
-      });
-      // Removed fetchServices(true) to prevent massive database re-download
-    });
-
-    // 2. Subscribe to admin-orders
-    const ordersChannel = pusherClient.subscribe('admin-orders');
-
-    ordersChannel.bind('order-placed', (newOrder: any) => {
-      setOrders((prev) => {
-        if (prev.some((o) => String(o.id) === String(newOrder.id))) return prev;
-        const updated = [newOrder, ...prev];
-        setCachedAdminOrders(updated);
-        return updated;
-      });
-      playChime();
-      toast.info(`New Order received from Room/Table ${newOrder.room_number}!`, {
-        icon: '🛍️',
-        duration: 8000,
-      });
-    });
-
-    ordersChannel.bind('order-status-changed', (data: any) => {
-      setOrders((prev) => {
-        const updated = prev.map((o) => (String(o.id) === String(data.id) ? { ...o, status: data.status } : o));
-        setCachedAdminOrders(updated);
-        return updated;
-      });
-    });
-
-    // 3. Subscribe to admin-calls
-    const callsChannel = pusherClient.subscribe('admin-calls');
-
-    callsChannel.bind('call-placed', (newCall: any) => {
-      setCalls((prev) => {
-        if (prev.some((c) => String(c.id) === String(newCall.id))) return prev;
-        const updated = [newCall, ...prev];
-        setCachedAdminCalls(updated);
-        return updated;
-      });
-      playChime();
-      toast.info(`New Waiter Call from Room/Table ${newCall.room_number}!`, {
-        icon: '🔔',
-        duration: 8000,
-      });
-    });
-
-    callsChannel.bind('call-completed', (data: any) => {
-      setCalls((prev) => {
-        const updated = prev.map((c) => (String(c.id) === String(data.id) ? { ...c, status: data.status } : c));
-        setCachedAdminCalls(updated);
-        return updated;
-      });
-    });
-
-    // 4. Subscribe to admin-feedback
-    const feedbackChannel = pusherClient.subscribe('admin-feedback');
-
-    feedbackChannel.bind('feedback-submitted', (newFeedback: any) => {
-      setFeedback((prev) => {
-        if (prev.some((f) => String(f.id) === String(newFeedback.id))) return prev;
-        const updated = [newFeedback, ...prev];
-        setCachedAdminFeedback(updated);
-        return updated;
-      });
-      toast.success('New customer feedback submitted!', {
-        icon: '💬',
-        duration: 5000,
-      });
-    });
-
-    return () => {
-      pusherClient.unsubscribe('menu-updates');
-      pusherClient.unsubscribe('admin-orders');
-      pusherClient.unsubscribe('admin-calls');
-      pusherClient.unsubscribe('admin-feedback');
-    };
-  }, []);
-
-  // Remove auto-setting active tab so it defaults to Master Menu
-  useEffect(() => {
-    // Menu is default view
-  }, [userRole]);
-
   useEffect(() => {
     if (!isAnyAdmin()) {
       toast.error("Access Denied: You are not an administrator.");
@@ -298,164 +122,17 @@ const AdminPanel = () => {
     }
   }, [user, navigate]);
 
-
-  const fetchServices = async (silent = false) => {
-    if (!silent) setLoading(true);
-    try {
-      const res = await fetch(apiUrl("/services.php?admin=1"));
-      if (!res.ok) throw new Error("Failed to fetch services data.");
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setCachedAdminServices(data);
-      setServices(data);
-    } catch (e: any) {
-      if (!silent) setError(e.message);
-    }
-    if (!silent) setLoading(false);
-  };
-  
-  const fetchFeedback = async (silent = false) => {
-    if (!silent) setFeedbackLoading(true);
-    setFeedbackError("");
-    try {
-      const res = await fetch(apiUrl("/feedback.php"));
-      if (!res.ok) throw new Error("Could not fetch feedback.");
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setCachedAdminFeedback(data);
-      setFeedback(data);
-    } catch (e: any) {
-      if (!silent) setFeedbackError(e.message);
-    }
-    if (!silent) setFeedbackLoading(false);
-  };
-
-  const fetchRoomData = async (silent = false) => {
-    if (!silent) setRoomLoading(true);
-    try {
-      const [ordersRes, callsRes] = await Promise.all([
-        fetch(apiUrl("/orders.php")),
-        fetch(apiUrl("/calls.php"))
-      ]);
-      if (ordersRes.ok) {
-        const ordersData = await ordersRes.json();
-        setCachedAdminOrders(ordersData);
-        setOrders(ordersData);
-      }
-      if (callsRes.ok) {
-        const callsData = await callsRes.json();
-        setCachedAdminCalls(callsData);
-        setCalls(callsData);
-      }
-    } catch (e) {
-      console.error("Failed to fetch room data", e);
-    }
-    if (!silent) setRoomLoading(false);
-  };
-
-  const updateOrderStatus = async (id: number, status: string) => {
-    const originalOrders = [...orders];
-    
-    // Optimistic UI update
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: status as any } : o));
-    setCachedAdminOrders(orders.map(o => o.id === id ? { ...o, status: status as any } : o));
-
-    try {
-      const res = await fetch(apiUrl("/orders.php"), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status })
-      });
-      if (!res.ok) {
-        throw new Error();
-      }
-      toast.success(`Order status updated to ${status}`);
-      // Refresh background data silently
-      fetchRoomData(true);
-    } catch (e) {
-      // Revert state
-      setOrders(originalOrders);
-      setCachedAdminOrders(originalOrders);
-      toast.error("Failed to update order status");
-    }
-  };
-
-  const updateCallStatus = async (id: number, status: string) => {
-    const originalCalls = [...calls];
-
-    // Optimistic UI update
-    setCalls(prev => prev.map(c => c.id === id ? { ...c, status: status as any } : c));
-    setCachedAdminCalls(calls.map(c => c.id === id ? { ...c, status: status as any } : c));
-
-    try {
-      const res = await fetch(apiUrl("/calls.php"), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status })
-      });
-      if (!res.ok) {
-        throw new Error();
-      }
-      toast.success(`Call marked as ${status}`);
-      // Refresh background data silently
-      fetchRoomData(true);
-    } catch (e) {
-      // Revert state
-      setCalls(originalCalls);
-      setCachedAdminCalls(originalCalls);
-      toast.error("Failed to update call status");
-    }
-  };
-
-  // Toggle service availability
-  const toggleAvailability = async (service: Service) => {
-    const originalAvailability = service.is_available;
-    const newAvailability = !originalAvailability;
-
-    // Optimistic UI update
-    setServices(prev => prev.map(s => s.id === service.id ? { ...s, is_available: newAvailability } : s));
-    setCachedAdminServices(services.map(s => s.id === service.id ? { ...s, is_available: newAvailability } : s));
-
-    try {
-      const res = await fetch(apiUrl("/services.php"), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: service.id, is_available: newAvailability })
-      });
-      if (!res.ok) {
-        throw new Error();
-      }
-      toast.success(newAvailability ? `"${service.name_en}" is now available` : `"${service.name_en}" is now hidden`);
-    } catch (e) {
-      // Revert state
-      setServices(prev => prev.map(s => s.id === service.id ? { ...s, is_available: originalAvailability } : s));
-      setCachedAdminServices(services.map(s => s.id === service.id ? { ...s, is_available: originalAvailability } : s));
-      toast.error("Failed to toggle availability");
-    }
-  };
-
   useEffect(() => {
     if (!isAnyAdmin() || !activeTab) return;
 
-    const servicesTabActive = activeTab === 'services' || activeTab === 'qrcodes';
-
-    if (servicesTabActive) {
-      const cached = getCachedAdminServices();
-      if (cached) { setServices(cached); setLoading(false); fetchServices(true); }
-      else fetchServices(false);
+    if (activeTab === 'services' || activeTab === 'qrcodes') {
+      fetchServices(services.length > 0);
     } else if (activeTab === 'feedback') {
-      const cached = getCachedAdminFeedback();
-      if (cached) { setFeedback(cached); setFeedbackLoading(false); fetchFeedback(true); }
-      else fetchFeedback(false);
+      fetchFeedback(feedback.length > 0);
     } else if (activeTab === 'orders' || activeTab === 'calls') {
-      const cachedOrders = getCachedAdminOrders();
-      const cachedCalls = getCachedAdminCalls();
-      if (cachedOrders) setOrders(cachedOrders);
-      if (cachedCalls) setCalls(cachedCalls);
-      if (cachedOrders && cachedCalls) { setRoomLoading(false); fetchRoomData(true); }
-      else fetchRoomData(false);
+      fetchRoomData(orders.length > 0 && calls.length > 0);
     }
-  }, [activeTab, user]);
+  }, [activeTab, user, fetchServices, fetchFeedback, fetchRoomData, services.length, feedback.length, orders.length, calls.length]);
 
   useEffect(() => {
     if (!isAnyAdmin()) return;
@@ -598,32 +275,7 @@ const AdminPanel = () => {
     });
   };
 
-  const handleDelete = async (serviceId: number) => {
-    const originalServices = [...services];
 
-    // Optimistic UI update
-    setServices(services.filter(s => s.id !== serviceId));
-    invalidateCachedAdminServices();
-
-    try {
-      const response = await fetch(apiUrl("/services.php"), {
-        method: "DELETE",
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: serviceId }),
-      });
-      const result = await response.json();
-      if (result.success) {
-        toast.success("Service deleted successfully!");
-      } else {
-        throw new Error(result.error || "Failed to delete service.");
-      }
-    } catch (error: any) {
-      // Revert state
-      setServices(originalServices);
-      setCachedAdminServices(originalServices);
-      toast.error(error.message || "Error deleting service.");
-    }
-  };
 
   // Filter services based on admin role and category
   const filteredServices = useMemo(() => {
@@ -732,7 +384,7 @@ const AdminPanel = () => {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>{t('admin.cancel')}</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(service.id)}>{t('admin.delete')}</AlertDialogAction>
+                          <AlertDialogAction onClick={() => deleteService(service.id)}>{t('admin.delete')}</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -1244,7 +896,7 @@ const AdminPanel = () => {
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>{t('admin.cancel')}</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDelete(service.id)}>{t('admin.delete')}</AlertDialogAction>
+                                <AlertDialogAction onClick={() => deleteService(service.id)}>{t('admin.delete')}</AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>

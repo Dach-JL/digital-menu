@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { apiUrl, uploadsUrl } from '@/config/api';
+import { uploadsUrl } from '@/config/api';
 import { useUser } from '@/contexts/UserContext';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { Heart } from 'lucide-react';
+import { Heart, Plus } from 'lucide-react';
 import { Product } from '@/types/Product';
 import { useNavigate } from 'react-router-dom';
-
 import { useRoomMode } from '@/contexts/RoomContext';
-import { Plus } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useFavoritesStore } from '@/stores/favoritesStore';
+import { useShallow } from 'zustand/shallow';
 
 interface ProductCardProps {
   product: Product;
@@ -29,14 +29,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onFavoriteTog
   const { t, i18n } = useTranslation();
   const { formatPrice } = useCurrency();
   const navigate = useNavigate();
-  const [isFavorited, setIsFavorited] = useState(product.isFavoritedInitially);
   const [translatedName, setTranslatedName] = useState<string>("");
 
-  const displayName = translatedName || getTranslated(product, 'name', i18n.language);
+  const { favorites, toggleFavorite } = useFavoritesStore(
+    useShallow((state) => ({
+      favorites: state.favorites,
+      toggleFavorite: state.toggleFavorite,
+    }))
+  );
 
-  useEffect(() => {
-    setIsFavorited(product.isFavoritedInitially);
-  }, [product.isFavoritedInitially]);
+  const isFavorited = favorites.includes(Number(product.id));
+  const displayName = translatedName || getTranslated(product, 'name', i18n.language);
 
   // Handle Auto-Translation
   useEffect(() => {
@@ -60,29 +63,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onFavoriteTog
       return;
     }
 
-    const endpoint = apiUrl('/favorites.php');
-    const payload = { user_id: user.id, service_id: product.id };
-    const method = isFavorited ? 'DELETE' : 'POST';
-
-    try {
-      const response = await fetch(endpoint, {
-        method: method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const result = await response.json();
-
-      if (response.ok && result.success) {
-        toast.success(`${displayName} ${isFavorited ? 'removed from' : 'added to'} favorites.`);
-        setIsFavorited(!isFavorited);
-        onFavoriteToggle?.();
-      } else {
-        toast.error(result.error || `Failed to update favorites.`);
-      }
-    } catch (err) {
-      toast.error("An error occurred while managing favorites.");
-    }
+    await toggleFavorite(user.id, Number(product.id));
+    const isNowFavorited = !isFavorited;
+    toast.success(`${displayName} ${isNowFavorited ? 'added to' : 'removed from'} favorites.`);
+    onFavoriteToggle?.();
   };
 
   const handleAddClick = (e: React.MouseEvent) => {

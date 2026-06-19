@@ -1,64 +1,59 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { apiUrl } from '@/config/api';
+import React, { useEffect, useMemo } from 'react';
 import { BottomNavigation } from '@/components/BottomNavigation';
 import { ProductCard } from '@/components/ProductCard';
 import { useUser } from '@/contexts/UserContext';
 import { Heart } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Product } from '@/types/Product';
-import { getCachedFavorites, setCachedFavorites } from '@/lib/pageCache';
+import { useServiceStore } from '@/stores/serviceStore';
+import { useFavoritesStore } from '@/stores/favoritesStore';
+import { useShallow } from 'zustand/shallow';
 
 const Favorites = () => {
   const { user } = useUser();
   const { t } = useTranslation();
-  const [favorites, setFavorites] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
 
-  const fetchFavorites = useCallback(async (silent = false) => {
-    if (!user) {
-      setIsLoading(false);
-      return;
-    }
-    if (!silent) setIsLoading(true);
-    setError('');
-    try {
-      const res = await fetch(apiUrl(`/favorites.php?user_id=${user.id}`));
-      if (!res.ok) throw new Error('Failed to fetch favorites');
+  const { services, fetchServices, servicesLoading } = useServiceStore(
+    useShallow((state) => ({
+      services: state.services,
+      fetchServices: state.fetchServices,
+      servicesLoading: state.loading,
+    }))
+  );
 
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-
-      const mappedFavorites: Product[] = data.map((fav: any) => ({
-        ...fav,
-        id: fav.service_id,
-        isFavoritedInitially: true,
-        rating: fav.rating || 5,
-        reviewCount: fav.reviewCount || '0',
-        image: fav.image_url || '/placeholder.svg',
-      }));
-      setCachedFavorites(user.id, mappedFavorites);
-      setFavorites(mappedFavorites);
-    } catch (e: any) {
-      if (!silent) setError(e.message);
-    } finally {
-      if (!silent) setIsLoading(false);
-    }
-  }, [user]);
+  const { favorites: favoriteIds, fetchFavorites, favoritesLoading } = useFavoritesStore(
+    useShallow((state) => ({
+      favorites: state.favorites,
+      fetchFavorites: state.fetchFavorites,
+      favoritesLoading: state.loading,
+    }))
+  );
 
   useEffect(() => {
-    if (!user) { setIsLoading(false); return; }
-    const cached = getCachedFavorites(user.id);
-    if (cached) {
-      // Show cached data immediately — no spinner
-      setFavorites(cached);
-      setIsLoading(false);
-      // Silently refresh in the background
-      fetchFavorites(true);
-    } else {
-      fetchFavorites(false);
+    if (services.length === 0) {
+      fetchServices();
     }
-  }, [user]);
+  }, [services.length, fetchServices]);
+
+  useEffect(() => {
+    if (user) {
+      fetchFavorites(user.id);
+    }
+  }, [user, fetchFavorites]);
+
+  const favoriteProducts = useMemo(() => {
+    return services
+      .filter((service) => favoriteIds.includes(Number(service.id)))
+      .map((service) => ({
+        ...service,
+        id: String(service.id),
+        isFavoritedInitially: true,
+        rating: 5,
+        reviewCount: '0',
+        image: service.image_url || '/placeholder.svg',
+      }));
+  }, [services, favoriteIds]);
+
+  const isLoading = (services.length === 0 && servicesLoading) || (favoriteIds.length === 0 && favoritesLoading);
 
   if (!user) {
     return (
@@ -77,32 +72,29 @@ const Favorites = () => {
       <main className="flex flex-col w-full flex-1 px-5 pt-14">
         <h1 className="text-2xl font-bold text-foreground mb-5">Favorite</h1>
         {isLoading && <p className="text-center text-muted-foreground">{t('messages.loading')}</p>}
-        {error && <p className="text-center text-red-500">{error}</p>}
-        {!isLoading && !error && favorites.length > 0 && (
+        {!isLoading && favoriteProducts.length > 0 && (
           <div className="grid grid-cols-2 gap-3 items-start mt-3">
              <div className="flex flex-col gap-3">
-                {favorites.filter((_, i) => i % 2 === 0).map((product, i) => (
+                {favoriteProducts.filter((_, i) => i % 2 === 0).map((product, i) => (
                   <ProductCard
                     key={product.id}
-                    product={product}
-                    onFavoriteToggle={fetchFavorites}
+                    product={product as any}
                     index={i * 2}
                   />
                 ))}
             </div>
-            <div className="flex flex-col gap-3">
-                {favorites.filter((_, i) => i % 2 === 1).map((product, i) => (
+             <div className="flex flex-col gap-3">
+                {favoriteProducts.filter((_, i) => i % 2 === 1).map((product, i) => (
                   <ProductCard
                     key={product.id}
-                    product={product}
-                    onFavoriteToggle={fetchFavorites}
+                    product={product as any}
                     index={i * 2 + 1}
                   />
                 ))}
             </div>
           </div>
         )}
-        {!isLoading && !error && favorites.length === 0 && (
+        {!isLoading && favoriteProducts.length === 0 && (
           <div className="text-center mt-16">
             <Heart className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
             <h2 className="text-lg font-semibold text-foreground">{t('favorites.empty_title')}</h2>

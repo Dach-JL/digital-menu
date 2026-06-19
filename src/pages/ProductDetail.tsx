@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { apiUrl, uploadsUrl } from '@/config/api';
+import React, { useState, useEffect, useMemo } from 'react';
+import { uploadsUrl } from '@/config/api';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getCachedProducts } from '@/lib/pageCache';
 import { useTranslation } from 'react-i18next';
 import { useUser } from '@/contexts/UserContext';
-import { Heart, ChevronLeft, Check, Plus, Minus, Info, Bed, Sofa, Utensils, Zap, Users, Maximize } from 'lucide-react';
+import { Heart, ChevronLeft, Check, Plus, Minus, Info, Bed, Sofa, Utensils, Zap, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useRoomMode } from '@/contexts/RoomContext';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { useServiceStore } from '@/stores/serviceStore';
+import { useFavoritesStore } from '@/stores/favoritesStore';
+import { useShallow } from 'zustand/shallow';
 
 const TranslatedItem = ({ text }: { text: string }) => {
   const { i18n } = useTranslation();
@@ -36,107 +38,47 @@ export const ProductDetail = () => {
   const { formatPrice } = useCurrency();
   const { isRoomMode, addToCart } = useRoomMode();
 
-  const [product, setProduct] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isFavorited, setIsFavorited] = useState(false);
+  const { services, fetchServices, servicesLoading } = useServiceStore(
+    useShallow((state) => ({
+      services: state.services,
+      fetchServices: state.fetchServices,
+      servicesLoading: state.loading,
+    }))
+  );
+
+  const { favorites, fetchFavorites, toggleFavorite } = useFavoritesStore(
+    useShallow((state) => ({
+      favorites: state.favorites,
+      fetchFavorites: state.fetchFavorites,
+      toggleFavorite: state.toggleFavorite,
+    }))
+  );
+
   const [quantity, setQuantity] = useState(1);
-  const [ingredients, setIngredients] = useState<string[]>([]);
   const [translatedName, setTranslatedName] = useState("");
   const [translatedDesc, setTranslatedDesc] = useState("");
 
+  const product = useMemo(() => {
+    return services.find((s) => String(s.id) === String(id));
+  }, [services, id]);
+
+  const isFavorited = useMemo(() => {
+    return favorites.includes(Number(id));
+  }, [favorites, id]);
+
+  const isLoading = services.length === 0 && servicesLoading;
+
   useEffect(() => {
-    const fetchProductDetails = async () => {
-      if (!id) return;
-
-      // ── 1. Try to serve from the in-memory cache immediately ──
-      const cached = getCachedProducts();
-      const cachedProduct = cached?.find((s) => String(s.id) === String(id));
-      if (cachedProduct) {
-        setProduct(cachedProduct);
-        if (cachedProduct.ingredients) {
-          try { setIngredients(JSON.parse(cachedProduct.ingredients)); } catch { setIngredients([]); }
-        }
-        // Still check favorites in the background, but don't show a spinner
-        if (user) {
-          fetch(apiUrl(`/favorites.php?user_id=${user.id}`))
-            .then(r => r.ok ? r.json() : [])
-            .then((favoritesData: any[]) => {
-              if (Array.isArray(favoritesData)) {
-                setIsFavorited(favoritesData.some((fav) => String(fav.service_id) === String(id)));
-              }
-            })
-            .catch(() => {});
-        }
-        setIsLoading(false);
-        return;
-      }
-
-      // ── 2. Cache miss — fetch from network (e.g. direct URL / deep link) ──
-      setIsLoading(true);
-      try {
-        const [servicesRes, favoritesRes] = await Promise.all([
-          fetch(apiUrl('/services.php')),
-          user ? fetch(apiUrl(`/favorites.php?user_id=${user.id}`)) : Promise.resolve(null)
-        ]);
-
-        if (!servicesRes.ok) throw new Error('Failed to fetch services');
-        const servicesData = await servicesRes.json();
-        const foundProduct = Array.isArray(servicesData)
-          ? servicesData.find((s: any) => String(s.id) === String(id))
-          : servicesData;
-
-        if (!foundProduct) throw new Error('Product not found');
-
-        let isFav = false;
-        if (favoritesRes && favoritesRes.ok) {
-          const favoritesData = await favoritesRes.json();
-          if (Array.isArray(favoritesData)) {
-            isFav = favoritesData.some((fav: any) => String(fav.service_id) === String(id));
-          }
-        }
-
-        setProduct(foundProduct);
-        setIsFavorited(isFav);
-        if (foundProduct.ingredients) {
-          try { setIngredients(JSON.parse(foundProduct.ingredients)); } catch { setIngredients([]); }
-        }
-      } catch (err: any) {
-        console.error('ProductDetail Error:', err);
-        toast.error(err.message || 'Failed to load product details.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchProductDetails();
-  }, [id, user]);
-
-  const handleFavoriteClick = async () => {
-    if (!user) {
-      toast.error("You must be logged in to manage favorites.");
-      return;
+    if (services.length === 0) {
+      fetchServices();
     }
-    const endpoint = apiUrl('/favorites.php');
-    const payload = { user_id: user.id, service_id: product.id };
-    const method = isFavorited ? 'DELETE' : 'POST';
+  }, [services.length, fetchServices]);
 
-    try {
-      const response = await fetch(endpoint, {
-        method: method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const result = await response.json();
-
-      if (response.ok && result.success) {
-        toast.success(`${getTranslatedName()} ${isFavorited ? 'removed from' : 'added to'} favorites.`);
-        setIsFavorited(!isFavorited);
-      } else {
-        toast.error(result.error || `Failed to update favorites.`);
-      }
-    } catch (err) {
-      toast.error("An error occurred while managing favorites.");
+  useEffect(() => {
+    if (user && favorites.length === 0) {
+      fetchFavorites(user.id);
     }
-  };
+  }, [user, favorites.length, fetchFavorites]);
 
   const getTranslatedName = () => {
     if (translatedName) return translatedName;
@@ -180,6 +122,27 @@ export const ProductDetail = () => {
       }
     });
   }, [i18n.language, product]);
+
+  const handleFavoriteClick = async () => {
+    if (!user) {
+      toast.error("You must be logged in to manage favorites.");
+      return;
+    }
+    if (!product) return;
+
+    await toggleFavorite(user.id, product.id);
+    const isNowFavorited = !isFavorited;
+    toast.success(`${getTranslatedName()} ${isNowFavorited ? 'added to' : 'removed from'} favorites.`);
+  };
+
+  const ingredients = useMemo<string[]>(() => {
+    if (!product?.ingredients) return [];
+    try {
+      return JSON.parse(product.ingredients);
+    } catch {
+      return [];
+    }
+  }, [product?.ingredients]);
 
   if (isLoading) {
     return (
