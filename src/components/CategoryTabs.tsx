@@ -3,12 +3,18 @@ import { useTranslation } from 'react-i18next';
 import { useRoomMode } from '@/contexts/RoomContext';
 
 interface CategoryTabsProps {
+  activeCategory?: string;
   onCategoryChange?: (category: string) => void;
   hideAll?: boolean;
   allowedCategories?: string[];
 }
 
-export const CategoryTabs: React.FC<CategoryTabsProps> = ({ onCategoryChange, hideAll = false, allowedCategories }) => {
+export const CategoryTabs: React.FC<CategoryTabsProps> = ({ 
+  activeCategory: parentActiveCategory, 
+  onCategoryChange, 
+  hideAll = false, 
+  allowedCategories 
+}) => {
   const { t, i18n } = useTranslation();
   const { isRoomMode } = useRoomMode();
 
@@ -34,7 +40,8 @@ export const CategoryTabs: React.FC<CategoryTabsProps> = ({ onCategoryChange, hi
 
   const defaultCategory = categories[0]?.id || 'all';
   
-  const [activeCategory, setActiveCategory] = useState(defaultCategory);
+  const [localActiveCategory, setLocalActiveCategory] = useState(defaultCategory);
+  const activeCategory = parentActiveCategory !== undefined ? parentActiveCategory : localActiveCategory;
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   const navRef = useRef<HTMLElement>(null);
 
@@ -58,7 +65,7 @@ export const CategoryTabs: React.FC<CategoryTabsProps> = ({ onCategoryChange, hi
   }, [activeCategory, i18n.language]);
 
   const handleCategoryClick = (categoryId: string) => {
-    setActiveCategory(categoryId);
+    setLocalActiveCategory(categoryId);
     onCategoryChange?.(categoryId);
   };
 

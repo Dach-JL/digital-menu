@@ -466,6 +466,7 @@ const AdminPanel = () => {
 
       <div className="mt-2">
         <CategoryTabs 
+          activeCategory={serviceCategory}
           onCategoryChange={setServiceCategory} 
           hideAll={true}
           allowedCategories={userRole === 'admin' ? ['food', 'drink', 'room'] : allowedServiceTypes}
@@ -980,6 +981,7 @@ const AdminPanel = () => {
       <div className="space-y-6 animate-in fade-in duration-300">
         <div className="flex items-center justify-between">
           <CategoryTabs 
+            activeCategory={serviceCategory}
             onCategoryChange={setServiceCategory} 
             hideAll={true}
             allowedCategories={userRole === 'admin' ? ['food', 'drink', 'room'] : allowedServiceTypes}
