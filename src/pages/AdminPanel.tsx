@@ -22,9 +22,21 @@ import { CategoryTabs } from "@/components/CategoryTabs";
 import { foodSubcategories, drinkSubcategories } from "@/constants/categories";
 import { invalidateCachedAdminServices } from '@/lib/pageCache';
 import { subscribeToNotifications } from "@/lib/firebase";
-import { useServiceStore, type Service } from "@/stores/serviceStore";
-import { useAdminQueueStore, type RoomOrder, type WaiterCall, type Feedback } from "@/stores/adminQueueStore";
-import { useShallow } from "zustand/shallow";
+import {
+  useServices,
+  useAdminOrders,
+  useAdminCalls,
+  useAdminFeedback,
+  useToggleAvailabilityMutation,
+  useDeleteServiceMutation,
+  useUpdateOrderStatusMutation,
+  useUpdateCallStatusMutation,
+  type Service,
+  type RoomOrder,
+  type WaiterCall,
+  type Feedback
+} from '@/hooks/useQueries';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Define which tabs each role can see
 const ROLE_TABS: Record<string, string[]> = {
@@ -56,6 +68,7 @@ const AdminPanel = () => {
   const { formatPrice } = useCurrency();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
 
   const userRole = user?.role || 'user';
   const allowedTabs = ROLE_TABS[userRole] || [];
@@ -64,42 +77,40 @@ const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [serviceCategory, setServiceCategory] = useState((userRole === 'admin' ? 'food' : allowedServiceTypes[0]) || 'food');
 
-  const { services, loading, error, fetchServices, toggleAvailability, deleteService } = useServiceStore(
-    useShallow((state) => ({
-      services: state.services,
-      loading: state.loading,
-      error: state.error,
-      fetchServices: state.fetchServices,
-      toggleAvailability: state.toggleAvailability,
-      deleteService: state.deleteService,
-    }))
-  );
+  // Queries
+  const { data: services = [], isLoading: servicesLoading, error: servicesError } = useServices(true);
+  const { data: orders = [], isLoading: ordersLoading } = useAdminOrders();
+  const { data: calls = [], isLoading: callsLoading } = useAdminCalls();
+  const { data: feedback = [], isLoading: feedbackLoading, error: feedbackErrorObj } = useAdminFeedback();
 
-  const {
-    orders,
-    calls,
-    feedback,
-    roomLoading,
-    feedbackLoading,
-    feedbackError,
-    fetchRoomData,
-    fetchFeedback,
-    updateOrderStatus,
-    updateCallStatus,
-  } = useAdminQueueStore(
-    useShallow((state) => ({
-      orders: state.orders,
-      calls: state.calls,
-      feedback: state.feedback,
-      roomLoading: state.roomLoading,
-      feedbackLoading: state.feedbackLoading,
-      feedbackError: state.feedbackError,
-      fetchRoomData: state.fetchRoomData,
-      fetchFeedback: state.fetchFeedback,
-      updateOrderStatus: state.updateOrderStatus,
-      updateCallStatus: state.updateCallStatus,
-    }))
-  );
+  // Mutations
+  const toggleAvailabilityMutation = useToggleAvailabilityMutation();
+  const deleteServiceMutation = useDeleteServiceMutation();
+  const updateOrderStatusMutation = useUpdateOrderStatusMutation();
+  const updateCallStatusMutation = useUpdateCallStatusMutation();
+
+  // Map to local variables for component rendering
+  const loading = servicesLoading;
+  const error = servicesError ? (servicesError as Error).message : '';
+  const roomLoading = ordersLoading || callsLoading;
+  const feedbackError = feedbackErrorObj ? (feedbackErrorObj as Error).message : '';
+
+  // Locally wrapped actions to maintain UI compatibility
+  const toggleAvailability = (service: Service) => {
+    toggleAvailabilityMutation.mutate({ serviceId: service.id, isAvailable: !service.is_available });
+  };
+
+  const deleteService = (serviceId: number) => {
+    deleteServiceMutation.mutate(serviceId);
+  };
+
+  const updateOrderStatus = (orderId: number, status: string) => {
+    updateOrderStatusMutation.mutate({ orderId, status });
+  };
+
+  const updateCallStatus = (callId: number, status: string) => {
+    updateCallStatusMutation.mutate({ callId, status });
+  };
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
@@ -123,18 +134,6 @@ const AdminPanel = () => {
   }, [user, navigate]);
 
   useEffect(() => {
-    if (!isAnyAdmin() || !activeTab) return;
-
-    if (activeTab === 'services' || activeTab === 'qrcodes') {
-      fetchServices(services.length > 0);
-    } else if (activeTab === 'feedback') {
-      fetchFeedback(feedback.length > 0);
-    } else if (activeTab === 'orders' || activeTab === 'calls') {
-      fetchRoomData(orders.length > 0 && calls.length > 0);
-    }
-  }, [activeTab, user, fetchServices, fetchFeedback, fetchRoomData, services.length, feedback.length, orders.length, calls.length]);
-
-  useEffect(() => {
     if (!isAnyAdmin()) return;
 
     const unsubscribe = subscribeToNotifications((notification) => {
@@ -147,7 +146,9 @@ const AdminPanel = () => {
             onClick: () => setActiveTab("orders")
           }
         });
-        if (activeTab === 'orders') fetchRoomData();
+        if (activeTab === 'orders') {
+          queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
+        }
       // Only show call notifications to admin and admin_waiter
       } else if (notification.type === 'call' && (userRole === 'admin' || userRole === 'admin_waiter')) {
         toast.warning(`Waiter Call! Room ${notification.roomNumber}`, {
@@ -157,12 +158,14 @@ const AdminPanel = () => {
             onClick: () => setActiveTab("calls")
           }
         });
-        if (activeTab === 'calls') fetchRoomData();
+        if (activeTab === 'calls') {
+          queryClient.invalidateQueries({ queryKey: ['admin', 'calls'] });
+        }
       }
     });
 
     return () => unsubscribe();
-  }, [user, activeTab]);
+  }, [user, activeTab, queryClient]);
 
   const openAddForm = () => {
     setEditingService(null);
@@ -267,7 +270,7 @@ const AdminPanel = () => {
       loading: `${editingService ? 'Updating' : 'Adding'} service...`,
       success: (res: any) => {
           invalidateCachedAdminServices();
-          fetchServices(true);
+          queryClient.invalidateQueries({ queryKey: ['services'] });
           setIsFormOpen(false);
           return `Service ${editingService ? 'updated' : 'added'} successfully!`;
       },

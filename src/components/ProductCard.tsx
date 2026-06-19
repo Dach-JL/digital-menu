@@ -8,8 +8,7 @@ import { Product } from '@/types/Product';
 import { useNavigate } from 'react-router-dom';
 import { useRoomMode } from '@/contexts/RoomContext';
 import { useCurrency } from '@/contexts/CurrencyContext';
-import { useFavoritesStore } from '@/stores/favoritesStore';
-import { useShallow } from 'zustand/shallow';
+import { useFavorites, useToggleFavoriteMutation } from '@/hooks/useQueries';
 
 interface ProductCardProps {
   product: Product;
@@ -31,12 +30,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onFavoriteTog
   const navigate = useNavigate();
   const [translatedName, setTranslatedName] = useState<string>("");
 
-  const { favorites, toggleFavorite } = useFavoritesStore(
-    useShallow((state) => ({
-      favorites: state.favorites,
-      toggleFavorite: state.toggleFavorite,
-    }))
-  );
+  const { data: favorites = [] } = useFavorites(user?.id);
+  const toggleFavoriteMutation = useToggleFavoriteMutation();
 
   const isFavorited = favorites.includes(Number(product.id));
   const displayName = translatedName || getTranslated(product, 'name', i18n.language);
@@ -63,7 +58,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onFavoriteTog
       return;
     }
 
-    await toggleFavorite(user.id, Number(product.id));
+    await toggleFavoriteMutation.mutateAsync({ userId: user.id, serviceId: Number(product.id) });
     const isNowFavorited = !isFavorited;
     toast.success(`${displayName} ${isNowFavorited ? 'added to' : 'removed from'} favorites.`);
     onFavoriteToggle?.();

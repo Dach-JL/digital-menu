@@ -8,9 +8,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useRoomMode } from '@/contexts/RoomContext';
 import { useCurrency } from '@/contexts/CurrencyContext';
-import { useServiceStore } from '@/stores/serviceStore';
-import { useFavoritesStore } from '@/stores/favoritesStore';
-import { useShallow } from 'zustand/shallow';
+import { useServices, useFavorites, useToggleFavoriteMutation } from '@/hooks/useQueries';
 
 const TranslatedItem = ({ text }: { text: string }) => {
   const { i18n } = useTranslation();
@@ -38,21 +36,9 @@ export const ProductDetail = () => {
   const { formatPrice } = useCurrency();
   const { isRoomMode, addToCart } = useRoomMode();
 
-  const { services, fetchServices, servicesLoading } = useServiceStore(
-    useShallow((state) => ({
-      services: state.services,
-      fetchServices: state.fetchServices,
-      servicesLoading: state.loading,
-    }))
-  );
-
-  const { favorites, fetchFavorites, toggleFavorite } = useFavoritesStore(
-    useShallow((state) => ({
-      favorites: state.favorites,
-      fetchFavorites: state.fetchFavorites,
-      toggleFavorite: state.toggleFavorite,
-    }))
-  );
+  const { data: services = [], isLoading: servicesLoading } = useServices();
+  const { data: favorites = [], isLoading: favoritesLoading } = useFavorites(user?.id);
+  const toggleFavoriteMutation = useToggleFavoriteMutation();
 
   const [quantity, setQuantity] = useState(1);
   const [translatedName, setTranslatedName] = useState("");
@@ -66,19 +52,7 @@ export const ProductDetail = () => {
     return favorites.includes(Number(id));
   }, [favorites, id]);
 
-  const isLoading = services.length === 0 && servicesLoading;
-
-  useEffect(() => {
-    if (services.length === 0) {
-      fetchServices();
-    }
-  }, [services.length, fetchServices]);
-
-  useEffect(() => {
-    if (user && favorites.length === 0) {
-      fetchFavorites(user.id);
-    }
-  }, [user, favorites.length, fetchFavorites]);
+  const isLoading = servicesLoading || (!!user && favoritesLoading && favorites.length === 0);
 
   const getTranslatedName = () => {
     if (translatedName) return translatedName;
@@ -130,7 +104,7 @@ export const ProductDetail = () => {
     }
     if (!product) return;
 
-    await toggleFavorite(user.id, product.id);
+    await toggleFavoriteMutation.mutateAsync({ userId: user.id, serviceId: product.id });
     const isNowFavorited = !isFavorited;
     toast.success(`${getTranslatedName()} ${isNowFavorited ? 'added to' : 'removed from'} favorites.`);
   };

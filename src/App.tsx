@@ -17,35 +17,51 @@ import AboutUs from "./pages/AboutUs";
 import { CurrencyProvider } from "./contexts/CurrencyContext";
 import CurrencySettings from "./pages/CurrencySettings";
 import LanguageSettings from "./pages/LanguageSettings";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryPusherSync } from "./components/QueryPusherSync";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes cache
+      gcTime: 10 * 60 * 1000,   // 10 minutes garbage collection
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const App = () => (
-  <ThemeProvider>
-    <UserProvider>
-      <CurrencyProvider>
-        <BrowserRouter>
-          <RoomProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner duration={2000} />
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/settings/currency" element={<CurrencySettings />} />
-                <Route path="/settings/language" element={<LanguageSettings />} />
-                <Route path="/settings/about" element={<AboutUs />} />
-                <Route path="/feedback" element={<Feedback />} />
-                <Route path="/favorites" element={<Favorites />} />
-                <Route path="/admin" element={<AdminPanel />} />
-                <Route path="/product/:id" element={<ProductDetail />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </TooltipProvider>
-          </RoomProvider>
-        </BrowserRouter>
-      </CurrencyProvider>
-    </UserProvider>
-  </ThemeProvider>
+  <QueryClientProvider client={queryClient}>
+    <QueryPusherSync />
+    <ThemeProvider>
+      <UserProvider>
+        <CurrencyProvider>
+          <BrowserRouter>
+            <RoomProvider>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner duration={2000} />
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/settings/currency" element={<CurrencySettings />} />
+                  <Route path="/settings/language" element={<LanguageSettings />} />
+                  <Route path="/settings/about" element={<AboutUs />} />
+                  <Route path="/feedback" element={<Feedback />} />
+                  <Route path="/favorites" element={<Favorites />} />
+                  <Route path="/admin" element={<AdminPanel />} />
+                  <Route path="/product/:id" element={<ProductDetail />} />
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </TooltipProvider>
+            </RoomProvider>
+          </BrowserRouter>
+        </CurrencyProvider>
+      </UserProvider>
+    </ThemeProvider>
+  </QueryClientProvider>
 );
 
 export default App;

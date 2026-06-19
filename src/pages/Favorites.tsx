@@ -1,51 +1,29 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { BottomNavigation } from '@/components/BottomNavigation';
 import { ProductCard } from '@/components/ProductCard';
 import { useUser } from '@/contexts/UserContext';
 import { Heart } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useServiceStore } from '@/stores/serviceStore';
-import { useFavoritesStore } from '@/stores/favoritesStore';
-import { useShallow } from 'zustand/shallow';
+import { useServices, useFavorites } from '@/hooks/useQueries';
+import { Product } from '@/types/Product';
 
 const Favorites = () => {
   const { user } = useUser();
   const { t } = useTranslation();
 
-  const { services, fetchServices, servicesLoading } = useServiceStore(
-    useShallow((state) => ({
-      services: state.services,
-      fetchServices: state.fetchServices,
-      servicesLoading: state.loading,
-    }))
-  );
+  const { data: services = [], isLoading: servicesLoading } = useServices(false);
+  const { data: favoriteIds = [], isLoading: favoritesLoading } = useFavorites(user?.id);
 
-  const { favorites: favoriteIds, fetchFavorites, favoritesLoading } = useFavoritesStore(
-    useShallow((state) => ({
-      favorites: state.favorites,
-      fetchFavorites: state.fetchFavorites,
-      favoritesLoading: state.loading,
-    }))
-  );
-
-  useEffect(() => {
-    if (services.length === 0) {
-      fetchServices();
-    }
-  }, [services.length, fetchServices]);
-
-  useEffect(() => {
-    if (user) {
-      fetchFavorites(user.id);
-    }
-  }, [user, fetchFavorites]);
-
-  const favoriteProducts = useMemo(() => {
+  const favoriteProducts = useMemo<Product[]>(() => {
     return services
       .filter((service) => favoriteIds.includes(Number(service.id)))
       .map((service) => ({
         ...service,
         id: String(service.id),
+        name_am: service.name_am || "",
+        name_om: service.name_om || "",
+        description_am: service.description_am || "",
+        description_om: service.description_om || "",
         isFavoritedInitially: true,
         rating: 5,
         reviewCount: '0',
@@ -53,7 +31,7 @@ const Favorites = () => {
       }));
   }, [services, favoriteIds]);
 
-  const isLoading = (services.length === 0 && servicesLoading) || (favoriteIds.length === 0 && favoritesLoading);
+  const isLoading = servicesLoading || favoritesLoading;
 
   if (!user) {
     return (
@@ -78,7 +56,7 @@ const Favorites = () => {
                 {favoriteProducts.filter((_, i) => i % 2 === 0).map((product, i) => (
                   <ProductCard
                     key={product.id}
-                    product={product as any}
+                    product={product}
                     index={i * 2}
                   />
                 ))}
@@ -87,7 +65,7 @@ const Favorites = () => {
                 {favoriteProducts.filter((_, i) => i % 2 === 1).map((product, i) => (
                   <ProductCard
                     key={product.id}
-                    product={product as any}
+                    product={product}
                     index={i * 2 + 1}
                   />
                 ))}

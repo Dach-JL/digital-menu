@@ -1,17 +1,15 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
+import { RoomBadge } from '@/components/RoomBadge';
 import { HeroSection } from '@/components/HeroSection';
 import { SearchBar } from '@/components/SearchBar';
 import { CategoryTabs } from '@/components/CategoryTabs';
-import { ProductList, Product } from '@/components/ProductList';
-import { BottomNavigation } from '@/components/BottomNavigation';
-import { FilterDrawer, FilterState, initialFilterState } from '@/components/FilterDrawer';
-import { useUser } from '@/contexts/UserContext';
-import { RoomBadge } from '@/components/RoomBadge';
+import { ProductList } from '@/components/ProductList';
+import { FilterDrawer, initialFilterState, type FilterState } from '@/components/FilterDrawer';
 import { FloatingCart } from '@/components/FloatingCart';
 import { FloatingCallWaiter } from '@/components/FloatingCallWaiter';
-import { useServiceStore } from '@/stores/serviceStore';
-import { useFavoritesStore } from '@/stores/favoritesStore';
-import { useShallow } from 'zustand/react/shallow';
+import { BottomNavigation } from '@/components/BottomNavigation';
+import { useUser } from '@/contexts/UserContext';
+import { useServices, useFavorites } from '@/hooks/useQueries';
 
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,35 +19,11 @@ const Index = () => {
 
   const { user } = useUser();
 
-  // Selectors from serviceStore
-  const { services, isLoading, error, fetchServices } = useServiceStore(
-    useShallow((state) => ({
-      services: state.services,
-      isLoading: state.loading,
-      error: state.error,
-      fetchServices: state.fetchServices,
-    }))
-  );
+  const { data: services = [], isLoading: servicesLoading, error: servicesError } = useServices();
+  const { data: favorites = [], isLoading: favoritesLoading } = useFavorites(user?.id);
 
-  // Selectors from favoritesStore
-  const { favorites, fetchFavorites } = useFavoritesStore(
-    useShallow((state) => ({
-      favorites: state.favorites,
-      fetchFavorites: state.fetchFavorites,
-    }))
-  );
-
-  // Initialize service catalog
-  useEffect(() => {
-    fetchServices();
-  }, [fetchServices]);
-
-  // Sync favorites if guest user is logged in
-  useEffect(() => {
-    if (user?.id) {
-      fetchFavorites(user.id);
-    }
-  }, [user, fetchFavorites]);
+  const isLoading = servicesLoading || (!!user && favoritesLoading && favorites.length === 0);
+  const error = servicesError ? (servicesError as Error).message : '';
 
   // Derive products list from services and favorites
   const products = useMemo(() => {
@@ -72,7 +46,7 @@ const Index = () => {
   }, [services, favorites]);
 
   const handleFavoriteToggleNoop = () => {
-    // Favorites now handle state management optimistically in favoritesStore
+    // React Query handles cache invalidation and UI syncing
   };
 
   return (
