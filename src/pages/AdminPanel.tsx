@@ -267,7 +267,7 @@ const AdminPanel = () => {
       loading: `${editingService ? 'Updating' : 'Adding'} service...`,
       success: (res: any) => {
           invalidateCachedAdminServices();
-          fetchServices();
+          fetchServices(true);
           setIsFormOpen(false);
           return `Service ${editingService ? 'updated' : 'added'} successfully!`;
       },
