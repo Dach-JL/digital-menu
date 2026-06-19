@@ -75,6 +75,7 @@ const AdminPanel = () => {
   const allowedServiceTypes = ROLE_SERVICE_TYPES[userRole] || [];
 
   const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [serviceCategory, setServiceCategory] = useState((userRole === 'admin' ? 'food' : allowedServiceTypes[0]) || 'food');
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -1333,115 +1334,153 @@ const AdminPanel = () => {
     );
   }
 
+  const buttonClass = (isActive: boolean) => `
+    flex items-center rounded-lg text-sm font-medium transition-all relative
+    ${isSidebarCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'gap-3 px-3 py-2.5 w-full'}
+    ${isActive
+      ? 'bg-zinc-950 text-white dark:bg-zinc-50 dark:text-zinc-950'
+      : 'hover:bg-accent hover:text-foreground text-muted-foreground'}
+  `;
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row">
       {/* Sidebar for Desktop */}
-      <aside className="hidden md:flex md:w-64 lg:w-72 flex-col border-r border-border bg-card p-6 min-h-screen sticky top-0 shrink-0 select-none">
-        <div className="flex items-center gap-2 mb-8 px-2">
-          <div className="w-8 h-8 rounded-lg bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center">
-            <Utensils className="h-4.5 w-4.5 text-background" />
-          </div>
-          <div>
-            <h1 className="font-bold text-base leading-none text-foreground tracking-tight">Royal Home</h1>
-            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Admin Portal</span>
-          </div>
+      <aside className={`hidden md:flex flex-col border-r border-border bg-card min-h-screen sticky top-0 shrink-0 select-none transition-all duration-300 ${
+        isSidebarCollapsed ? 'w-20 p-3' : 'w-64 lg:w-72 p-6'
+      }`}>
+        <div className="flex items-center justify-between mb-8 px-2">
+          {!isSidebarCollapsed && (
+            <div className="flex items-center gap-2 animate-in fade-in duration-300">
+              <div className="w-8 h-8 rounded-lg bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center">
+                <Utensils className="h-4.5 w-4.5 text-background" />
+              </div>
+              <div>
+                <h1 className="font-bold text-base leading-none text-foreground tracking-tight">Royal Home</h1>
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Admin Portal</span>
+              </div>
+            </div>
+          )}
+          {isSidebarCollapsed && (
+            <div className="w-8 h-8 rounded-lg bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center mx-auto animate-in fade-in duration-300">
+              <Utensils className="h-4.5 w-4.5 text-background" />
+            </div>
+          )}
+          <button
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className={`p-1.5 rounded-lg hover:bg-muted border border-transparent hover:border-border transition-all active:scale-95 ${isSidebarCollapsed ? 'mx-auto mt-2' : 'ml-auto'}`}
+            title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
         </div>
 
         {/* User Card */}
-        <div className="mb-6 p-4 rounded-xl bg-muted/40 border border-border/50">
-          <p className="text-xs font-semibold text-foreground truncate">{user?.username || 'Administrator'}</p>
-          <p className="text-[10px] text-muted-foreground truncate mb-2">{user?.email}</p>
-          <div className="inline-block bg-zinc-900 dark:bg-zinc-100 text-background px-2.5 py-0.5 rounded-full text-[9px] font-bold">
-            {getRoleBadgeLabel()}
+        {!isSidebarCollapsed && (
+          <div className="mb-6 p-4 rounded-xl bg-muted/40 border border-border/50 animate-in fade-in duration-300">
+            <p className="text-xs font-semibold text-foreground truncate">{user?.username || 'Administrator'}</p>
+            <p className="text-[10px] text-muted-foreground truncate mb-2">{user?.email}</p>
+            <div className="inline-block bg-zinc-900 dark:bg-zinc-100 text-background px-2.5 py-0.5 rounded-full text-[9px] font-bold">
+              {getRoleBadgeLabel()}
+            </div>
           </div>
-        </div>
+        )}
+        {isSidebarCollapsed && (
+          <div className="mb-6 flex justify-center animate-in fade-in duration-300" title={`${user?.username || 'Administrator'} (${getRoleBadgeLabel()})`}>
+            <div className="w-10 h-10 rounded-full bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center text-background font-bold text-sm shadow-sm border">
+              {(user?.username || 'A')[0].toUpperCase()}
+            </div>
+          </div>
+        )}
 
         {/* Navigation Tabs */}
-        <nav className="flex-1 space-y-1">
+        <nav className="flex-1 space-y-2">
+          {/* Overview Dashboard */}
           <button
             onClick={() => setActiveTab(null)}
-            className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium transition-all ${
-              activeTab === null
-                ? 'bg-zinc-950 text-white dark:bg-zinc-50 dark:text-zinc-950'
-                : 'hover:bg-accent hover:text-foreground text-muted-foreground'
-            }`}
+            className={buttonClass(activeTab === null)}
+            title="Overview Dashboard"
           >
             <LayoutDashboard className="h-4 w-4 shrink-0" />
-            <span>Overview Dashboard</span>
+            {!isSidebarCollapsed && <span>Overview Dashboard</span>}
           </button>
+
+          {/* Manage Services */}
           {allowedTabs.includes('services') && (
             <button
               onClick={() => setActiveTab('services')}
-              className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium transition-all ${
-                activeTab === 'services'
-                  ? 'bg-zinc-950 text-white dark:bg-zinc-50 dark:text-zinc-950'
-                  : 'hover:bg-accent hover:text-foreground text-muted-foreground'
-              }`}
+              className={buttonClass(activeTab === 'services')}
+              title="Manage Services"
             >
               <Utensils className="h-4 w-4 shrink-0" />
-              <span>Manage Services</span>
+              {!isSidebarCollapsed && <span>Manage Services</span>}
             </button>
           )}
+
+          {/* Orders Queue */}
           {allowedTabs.includes('orders') && (
             <button
               onClick={() => setActiveTab('orders')}
-              className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium transition-all ${
-                activeTab === 'orders'
-                  ? 'bg-zinc-950 text-white dark:bg-zinc-50 dark:text-zinc-950'
-                  : 'hover:bg-accent hover:text-foreground text-muted-foreground'
-              }`}
+              className={buttonClass(activeTab === 'orders')}
+              title="Orders Queue"
             >
               <ShoppingBag className="h-4 w-4 shrink-0" />
-              <span>Orders Queue</span>
-              {orders.filter(o => o.status === 'pending').length > 0 && (
+              {!isSidebarCollapsed && <span>Orders Queue</span>}
+              {!isSidebarCollapsed && orders.filter(o => o.status === 'pending').length > 0 && (
                 <span className="ml-auto w-5 h-5 rounded-full bg-blue-500 text-white text-[9px] font-bold flex items-center justify-center">
+                  {orders.filter(o => o.status === 'pending').length}
+                </span>
+              )}
+              {isSidebarCollapsed && orders.filter(o => o.status === 'pending').length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-blue-500 text-white text-[8px] font-bold flex items-center justify-center animate-in zoom-in">
                   {orders.filter(o => o.status === 'pending').length}
                 </span>
               )}
             </button>
           )}
+
+          {/* Waiter Calls */}
           {allowedTabs.includes('calls') && (
             <button
               onClick={() => setActiveTab('calls')}
-              className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium transition-all ${
-                activeTab === 'calls'
-                  ? 'bg-zinc-950 text-white dark:bg-zinc-50 dark:text-zinc-950'
-                  : 'hover:bg-accent hover:text-foreground text-muted-foreground'
-              }`}
+              className={buttonClass(activeTab === 'calls')}
+              title="Waiter Calls"
             >
               <Bell className="h-4 w-4 shrink-0" />
-              <span>Waiter Calls</span>
-              {calls.filter(c => c.status === 'pending').length > 0 && (
+              {!isSidebarCollapsed && <span>Waiter Calls</span>}
+              {!isSidebarCollapsed && calls.filter(c => c.status === 'pending').length > 0 && (
                 <span className="ml-auto w-5 h-5 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center">
+                  {calls.filter(c => c.status === 'pending').length}
+                </span>
+              )}
+              {isSidebarCollapsed && calls.filter(c => c.status === 'pending').length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-white text-[8px] font-bold flex items-center justify-center animate-in zoom-in">
                   {calls.filter(c => c.status === 'pending').length}
                 </span>
               )}
             </button>
           )}
+
+          {/* QR Code Generator */}
           {allowedTabs.includes('qrcodes') && (
             <button
               onClick={() => setActiveTab('qrcodes')}
-              className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium transition-all ${
-                activeTab === 'qrcodes'
-                  ? 'bg-zinc-950 text-white dark:bg-zinc-50 dark:text-zinc-950'
-                  : 'hover:bg-accent hover:text-foreground text-muted-foreground'
-              }`}
+              className={buttonClass(activeTab === 'qrcodes')}
+              title="QR Code Generator"
             >
               <QrCode className="h-4 w-4 shrink-0" />
-              <span>QR Code Generator</span>
+              {!isSidebarCollapsed && <span>QR Codes</span>}
             </button>
           )}
+
+          {/* Customer Feedback */}
           {allowedTabs.includes('feedback') && (
             <button
               onClick={() => setActiveTab('feedback')}
-              className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium transition-all ${
-                activeTab === 'feedback'
-                  ? 'bg-zinc-950 text-white dark:bg-zinc-50 dark:text-zinc-950'
-                  : 'hover:bg-accent hover:text-foreground text-muted-foreground'
-              }`}
+              className={buttonClass(activeTab === 'feedback')}
+              title="Customer Feedback"
             >
               <MessageSquare className="h-4 w-4 shrink-0" />
-              <span>Customer Feedback</span>
+              {!isSidebarCollapsed && <span>Customer Feedback</span>}
             </button>
           )}
         </nav>
@@ -1450,10 +1489,13 @@ const AdminPanel = () => {
         <div className="pt-4 border-t border-border mt-auto space-y-1">
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium hover:bg-accent hover:text-foreground text-muted-foreground transition-all"
+            className={`flex items-center rounded-lg text-sm font-medium hover:bg-accent hover:text-foreground text-muted-foreground transition-all ${
+              isSidebarCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'gap-3 px-3 py-2.5 w-full'
+            }`}
+            title="Go to Portal"
           >
             <ChevronLeft className="h-4 w-4 shrink-0" />
-            <span>Go to Portal</span>
+            {!isSidebarCollapsed && <span>Go to Portal</span>}
           </button>
         </div>
       </aside>
