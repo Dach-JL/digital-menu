@@ -86,6 +86,9 @@ const AdminPanel = () => {
   const [feedbackCategoryFilter, setFeedbackCategoryFilter] = useState("all");
   const [feedbackSortBy, setFeedbackSortBy] = useState("newest");
   const [qrSearchQuery, setQrSearchQuery] = useState("");
+  const [callStatusFilter, setCallStatusFilter] = useState("pending");
+  const [callRoomFilter, setCallRoomFilter] = useState("");
+  const [callSortBy, setCallSortBy] = useState("newest");
 
   // Reset subcategory filter when the main category tab changes
   useEffect(() => {
@@ -416,6 +419,36 @@ const AdminPanel = () => {
     return list;
   }, [feedback, feedbackRatingFilter, feedbackCategoryFilter, feedbackSortBy]);
 
+  // Filtered and sorted waiter calls
+  const filteredCalls = useMemo(() => {
+    let list = [...calls];
+
+    // 1. Filter by status
+    if (callStatusFilter !== "all") {
+      list = list.filter(c => c.status === callStatusFilter);
+    }
+
+    // 2. Filter by room number
+    if (callRoomFilter) {
+      const targetQuery = callRoomFilter.toLowerCase();
+      list = list.filter(c => {
+        const roomNum = c.room_number ? String(c.room_number).toLowerCase() : "";
+        return roomNum.includes(targetQuery);
+      });
+    }
+
+    // 3. Sort by selection
+    list.sort((a, b) => {
+      if (callSortBy === 'oldest') {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
+      // default: newest date first
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+    return list;
+  }, [calls, callStatusFilter, callRoomFilter, callSortBy]);
+
   // Role label for the admin badge
   const getRoleBadgeLabel = () => {
     switch (userRole) {
@@ -552,6 +585,53 @@ const AdminPanel = () => {
             <SelectItem value="oldest">Oldest First</SelectItem>
             <SelectItem value="rating_desc">Highest Rating</SelectItem>
             <SelectItem value="rating_asc">Lowest Rating</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+
+  const renderCallFilters = () => (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-muted/20 border border-border/40 rounded-xl mb-6">
+      {/* Search Room */}
+      <div className="space-y-1">
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Search Room</span>
+        <div className="relative">
+          <Input
+            placeholder="Room number..."
+            value={callRoomFilter}
+            onChange={(e) => setCallRoomFilter(e.target.value)}
+            className="pl-9 bg-background h-10 text-sm"
+          />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        </div>
+      </div>
+
+      {/* Status Filter */}
+      <div className="space-y-1">
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Status</span>
+        <Select value={callStatusFilter} onValueChange={setCallStatusFilter}>
+          <SelectTrigger className="bg-background">
+            <SelectValue placeholder="Pending" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Calls</SelectItem>
+            <SelectItem value="pending">Pending Only</SelectItem>
+            <SelectItem value="completed">Resolved Only</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Sort By */}
+      <div className="space-y-1">
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Sort By</span>
+        <Select value={callSortBy} onValueChange={setCallSortBy}>
+          <SelectTrigger className="bg-background">
+            <SelectValue placeholder="Newest First" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="newest">Newest First</SelectItem>
+            <SelectItem value="oldest">Oldest First</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -978,21 +1058,31 @@ const AdminPanel = () => {
         <h2 className="text-xl font-semibold text-foreground">Waiter Calls</h2>
         <Badge variant="outline" className="bg-zinc-100 dark:bg-zinc-800 text-foreground border-border">
           <BellRing className="w-3 h-3 mr-1" />
-          {calls.filter(c => c.status === 'pending').length} Active
+          {filteredCalls.filter(c => c.status === 'pending').length} Active
         </Badge>
       </div>
+
+      {!roomLoading && calls.length > 0 && renderCallFilters()}
 
       {roomLoading && <p>{t('messages.loading')}</p>}
       {!roomLoading && calls.length === 0 && (
         <div className="bg-card p-12 rounded-2xl border text-center">
           <BellRing className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="font-semibold text-foreground mb-1">No active calls</h3>
+          <h3 className="font-semibold text-foreground mb-1">No waiter calls</h3>
           <p className="text-sm text-muted-foreground">Waiter requests will appear here.</p>
         </div>
       )}
 
+      {!roomLoading && calls.length > 0 && filteredCalls.length === 0 && (
+        <div className="bg-card p-12 rounded-2xl border text-center">
+          <BellRing className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-40" />
+          <h3 className="font-semibold text-foreground mb-1">No matching calls</h3>
+          <p className="text-sm text-muted-foreground">Try adjusting your status or room filters.</p>
+        </div>
+      )}
+
       <div className="space-y-4">
-        {calls.map((call) => (
+        {filteredCalls.map((call) => (
           <Card key={call.id} className={call.status === 'pending' ? 'border-zinc-500/30 bg-zinc-500/5' : ''}>
             <CardContent className="py-4">
               <div className="flex justify-between items-center">
@@ -1341,8 +1431,26 @@ const AdminPanel = () => {
       <div className="space-y-6 animate-in fade-in duration-300">
         {roomLoading && <div className="text-center text-muted-foreground">{t('messages.loading')}</div>}
         
+        {!roomLoading && calls.length > 0 && renderCallFilters()}
+
+        {!roomLoading && calls.length === 0 && (
+          <div className="bg-card p-12 rounded-xl border border-dashed text-center text-muted-foreground text-sm">
+            <BellRing className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-30" />
+            <p className="font-bold text-foreground mb-1">No waiter calls</p>
+            <p>Waiter requests will appear here.</p>
+          </div>
+        )}
+
+        {!roomLoading && calls.length > 0 && filteredCalls.length === 0 && (
+          <div className="bg-card p-12 rounded-xl border border-dashed text-center text-muted-foreground text-sm">
+            <BellRing className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-30" />
+            <p className="font-bold text-foreground mb-1">No matching calls</p>
+            <p>Try adjusting your status or room filters.</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {calls.map((call) => (
+          {filteredCalls.map((call) => (
             <Card key={call.id} className={`transition-all hover:shadow-md ${call.status === 'pending' ? 'border-amber-500/40 bg-amber-500/5' : 'opacity-70'}`}>
               <CardContent className="py-5">
                 <div className="flex items-center justify-between">
@@ -1366,11 +1474,6 @@ const AdminPanel = () => {
               </CardContent>
             </Card>
           ))}
-          {calls.length === 0 && (
-            <div className="col-span-full bg-card p-12 rounded-xl border border-dashed text-center text-muted-foreground text-sm">
-              No service or waiter calls listed.
-            </div>
-          )}
         </div>
       </div>
     );
