@@ -82,6 +82,9 @@ const AdminPanel = () => {
   const [subcategoryFilter, setSubcategoryFilter] = useState("all");
   const [maxPriceFilter, setMaxPriceFilter] = useState("");
   const [sortBy, setSortBy] = useState("newest");
+  const [feedbackRatingFilter, setFeedbackRatingFilter] = useState("all");
+  const [feedbackCategoryFilter, setFeedbackCategoryFilter] = useState("all");
+  const [feedbackSortBy, setFeedbackSortBy] = useState("newest");
 
   // Reset subcategory filter when the main category tab changes
   useEffect(() => {
@@ -368,6 +371,50 @@ const AdminPanel = () => {
 
   const formTitle = useMemo(() => editingService ? t('admin.form_edit_title') : t('admin.form_add_title'), [editingService, t]);
 
+  // Dynamic categories extracted from feedback submissions
+  const feedbackCategories = useMemo(() => {
+    const categories = new Set<string>();
+    feedback.forEach(item => {
+      if (item.category) {
+        categories.add(item.category);
+      }
+    });
+    return Array.from(categories).sort();
+  }, [feedback]);
+
+  // Filtered and sorted feedback list
+  const filteredFeedback = useMemo(() => {
+    let list = [...feedback];
+
+    // 1. Filter by rating
+    if (feedbackRatingFilter !== "all") {
+      const targetRating = parseInt(feedbackRatingFilter, 10);
+      list = list.filter(f => f.rating === targetRating);
+    }
+
+    // 2. Filter by category
+    if (feedbackCategoryFilter !== "all") {
+      list = list.filter(f => f.category === feedbackCategoryFilter);
+    }
+
+    // 3. Sort by selection
+    list.sort((a, b) => {
+      if (feedbackSortBy === 'rating_desc') {
+        return b.rating - a.rating;
+      }
+      if (feedbackSortBy === 'rating_asc') {
+        return a.rating - b.rating;
+      }
+      if (feedbackSortBy === 'oldest') {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
+      // default: newest date first
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+    return list;
+  }, [feedback, feedbackRatingFilter, feedbackCategoryFilter, feedbackSortBy]);
+
   // Role label for the admin badge
   const getRoleBadgeLabel = () => {
     switch (userRole) {
@@ -452,6 +499,60 @@ const AdminPanel = () => {
             </SelectContent>
           </Select>
         </div>
+      </div>
+    </div>
+  );
+
+  const renderFeedbackFilters = () => (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-muted/20 border border-border/40 rounded-xl mb-6">
+      {/* Category Filter */}
+      <div className="space-y-1">
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Category</span>
+        <Select value={feedbackCategoryFilter} onValueChange={setFeedbackCategoryFilter}>
+          <SelectTrigger className="bg-background">
+            <SelectValue placeholder="All Categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {feedbackCategories.map(cat => (
+              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Star Rating Filter */}
+      <div className="space-y-1">
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Rating</span>
+        <Select value={feedbackRatingFilter} onValueChange={setFeedbackRatingFilter}>
+          <SelectTrigger className="bg-background">
+            <SelectValue placeholder="All Ratings" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Ratings</SelectItem>
+            <SelectItem value="5">5 Stars</SelectItem>
+            <SelectItem value="4">4 Stars</SelectItem>
+            <SelectItem value="3">3 Stars</SelectItem>
+            <SelectItem value="2">2 Stars</SelectItem>
+            <SelectItem value="1">1 Star</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Sort By */}
+      <div className="space-y-1">
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Sort By</span>
+        <Select value={feedbackSortBy} onValueChange={setFeedbackSortBy}>
+          <SelectTrigger className="bg-background">
+            <SelectValue placeholder="Newest First" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="newest">Newest First</SelectItem>
+            <SelectItem value="oldest">Oldest First</SelectItem>
+            <SelectItem value="rating_desc">Highest Rating</SelectItem>
+            <SelectItem value="rating_asc">Lowest Rating</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );
@@ -752,10 +853,14 @@ const AdminPanel = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-foreground">{t('admin.user_feedback')}</h2>
-        <span className="text-sm text-muted-foreground">{t('admin.reviews', {count: feedback.length})}</span>
+        <span className="text-sm text-muted-foreground">{t('admin.reviews', {count: filteredFeedback.length})}</span>
       </div>
+      
       {feedbackLoading && <p>{t('messages.loading')}</p>}
       {feedbackError && <p className="text-destructive">{feedbackError}</p>}
+      
+      {!feedbackLoading && !feedbackError && feedback.length > 0 && renderFeedbackFilters()}
+      
       {!feedbackLoading && !feedbackError && feedback.length === 0 && (
         <div className="bg-card p-12 rounded-lg border text-center">
           <MessageSquare className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -763,8 +868,17 @@ const AdminPanel = () => {
           <p className="text-muted-foreground">{t('admin.no_feedback_description')}</p>
         </div>
       )}
+
+      {!feedbackLoading && !feedbackError && feedback.length > 0 && filteredFeedback.length === 0 && (
+        <div className="bg-card p-12 rounded-lg border text-center">
+          <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-40" />
+          <h3 className="text-base font-bold text-foreground mb-1">No matching feedback</h3>
+          <p className="text-sm text-muted-foreground">Try adjusting your category or rating filters.</p>
+        </div>
+      )}
+
       <div className="space-y-4">
-        {feedback.map((item) => (
+        {filteredFeedback.map((item) => (
           <Card key={item.id}>
             <CardHeader>
               <div className="flex justify-between items-start">
@@ -1241,6 +1355,8 @@ const AdminPanel = () => {
         {feedbackLoading && <div className="text-center text-muted-foreground">{t('messages.loading')}</div>}
         {feedbackError && <div className="text-destructive text-center">{feedbackError}</div>}
         
+        {!feedbackLoading && !feedbackError && feedback.length > 0 && renderFeedbackFilters()}
+
         {!feedbackLoading && !feedbackError && feedback.length === 0 && (
           <div className="bg-card p-12 rounded-xl border border-dashed text-center">
             <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-40" />
@@ -1249,8 +1365,16 @@ const AdminPanel = () => {
           </div>
         )}
 
+        {!feedbackLoading && !feedbackError && feedback.length > 0 && filteredFeedback.length === 0 && (
+          <div className="bg-card p-12 rounded-xl border border-dashed text-center">
+            <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-40" />
+            <h3 className="text-base font-bold text-foreground mb-1">No matching feedback</h3>
+            <p className="text-sm text-muted-foreground">Try adjusting your category or rating filters.</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {feedback.map((item) => (
+          {filteredFeedback.map((item) => (
             <Card key={item.id} className="hover:shadow-md transition-shadow flex flex-col justify-between h-[180px]">
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
