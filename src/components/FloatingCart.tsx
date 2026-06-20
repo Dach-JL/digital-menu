@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { uploadsUrl } from '@/config/api';
 import { useRoomMode } from '@/contexts/RoomContext';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 
 export const FloatingCart = () => {
+  const navigate = useNavigate();
   const { isRoomMode, cart, updateQuantity, removeFromCart, placeOrder } = useRoomMode();
 
   if (!isRoomMode || cart.length === 0) return null;
@@ -90,7 +92,7 @@ export const FloatingCart = () => {
           </div>
 
           <DrawerFooter className="px-0 pt-0 gap-3">
-            <Button className="w-full h-12 text-md font-bold gap-2 shadow-lg" onClick={placeOrder}>
+            <Button className="w-full h-12 text-md font-bold gap-2 shadow-lg" onClick={() => placeOrder(navigate)}>
               <CreditCard className="h-5 w-5" />
               Order to Room
             </Button>

@@ -20,7 +20,7 @@ interface RoomState {
   removeFromCart: (id: number) => void;
   updateQuantity: (id: number, quantity: number) => void;
   clearCart: () => void;
-  placeOrder: () => Promise<void>;
+  placeOrder: (navigate?: (path: string) => void) => Promise<void>;
   callWaiter: () => Promise<void>;
 }
 
@@ -67,7 +67,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
 
   clearCart: () => set({ cart: [] }),
 
-  placeOrder: async () => {
+  placeOrder: async (navigate) => {
     const { roomNumber, cart, clearCart } = get();
     if (!roomNumber || cart.length === 0) return;
 
@@ -86,7 +86,13 @@ export const useRoomStore = create<RoomState>((set, get) => ({
         toast.success('Order placed successfully!', {
           action: {
             label: 'Track Order',
-            onClick: () => { window.location.href = '/order-status'; }
+            onClick: () => {
+              if (navigate) {
+                navigate('/order-status');
+              } else {
+                window.location.href = '/order-status';
+              }
+            }
           }
         });
         
@@ -100,7 +106,11 @@ export const useRoomStore = create<RoomState>((set, get) => ({
         clearCart();
 
         setTimeout(() => {
-          window.location.href = '/order-status';
+          if (navigate) {
+            navigate('/order-status');
+          } else {
+            window.location.href = '/order-status';
+          }
         }, 1200);
       } else {
         toast.error(result.error || 'Failed to place order');
