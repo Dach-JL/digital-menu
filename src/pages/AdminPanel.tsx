@@ -85,6 +85,7 @@ const AdminPanel = () => {
   const [feedbackRatingFilter, setFeedbackRatingFilter] = useState("all");
   const [feedbackCategoryFilter, setFeedbackCategoryFilter] = useState("all");
   const [feedbackSortBy, setFeedbackSortBy] = useState("newest");
+  const [qrSearchQuery, setQrSearchQuery] = useState("");
 
   // Reset subcategory filter when the main category tab changes
   useEffect(() => {
@@ -1045,10 +1046,31 @@ const AdminPanel = () => {
 
   const renderQRCodesTab = () => {
     const roomServices = services.filter(s => s.type === 'room');
+    const filteredRooms = roomServices.filter(s => {
+      if (!qrSearchQuery) return true;
+      const roomNum = s.room_number ? String(s.room_number).toLowerCase() : "";
+      const nameEn = s.name_en ? String(s.name_en).toLowerCase() : "";
+      const targetQuery = qrSearchQuery.toLowerCase();
+      return roomNum.includes(targetQuery) || nameEn.includes(targetQuery);
+    });
     
     return (
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-        <h2 className="text-xl font-semibold text-foreground">Room QR Codes</h2>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <h2 className="text-xl font-semibold text-foreground">Room QR Codes</h2>
+          {roomServices.length > 0 && (
+            <div className="relative w-full sm:max-w-xs">
+              <Input
+                placeholder="Search room number..."
+                value={qrSearchQuery}
+                onChange={(e) => setQrSearchQuery(e.target.value)}
+                className="pl-9 bg-background h-9 text-sm"
+              />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            </div>
+          )}
+        </div>
+
         {loading ? (
            <div>{t('messages.loading')}</div>
         ) : roomServices.length === 0 ? (
@@ -1056,9 +1078,14 @@ const AdminPanel = () => {
             <QrCode className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-20" />
             <p className="text-muted-foreground">No rooms found. Add some rooms to generate QR codes.</p>
           </div>
+        ) : filteredRooms.length === 0 ? (
+          <div className="text-center py-10 bg-card rounded-xl border border-dashed">
+            <Search className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-20" />
+            <p className="text-muted-foreground">No room matching "{qrSearchQuery}" found.</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {roomServices.map((room) => {
+            {filteredRooms.map((room) => {
               const roomIdentifier = room.room_number || room.name_en;
               const qrUrl = `https://royalhotelmenu.vercel.app/?mode=room&room=${encodeURIComponent(roomIdentifier)}`;
               return (
@@ -1408,9 +1435,30 @@ const AdminPanel = () => {
 
   const renderDesktopQRCodesTab = () => {
     const roomServices = services.filter(s => s.type === 'room');
+    const filteredRooms = roomServices.filter(s => {
+      if (!qrSearchQuery) return true;
+      const roomNum = s.room_number ? String(s.room_number).toLowerCase() : "";
+      const nameEn = s.name_en ? String(s.name_en).toLowerCase() : "";
+      const targetQuery = qrSearchQuery.toLowerCase();
+      return roomNum.includes(targetQuery) || nameEn.includes(targetQuery);
+    });
     
     return (
       <div className="space-y-6 animate-in fade-in duration-300">
+        {!loading && roomServices.length > 0 && (
+          <div className="flex justify-end mb-4">
+            <div className="relative w-full max-w-xs">
+              <Input
+                placeholder="Search room number..."
+                value={qrSearchQuery}
+                onChange={(e) => setQrSearchQuery(e.target.value)}
+                className="pl-9 bg-background h-9 text-sm"
+              />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            </div>
+          </div>
+        )}
+
         {loading ? (
            <div className="text-center text-muted-foreground">{t('messages.loading')}</div>
         ) : roomServices.length === 0 ? (
@@ -1418,9 +1466,14 @@ const AdminPanel = () => {
             <QrCode className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-30" />
             <p className="text-muted-foreground">No room catalog items found. Add some rooms to generate QR codes.</p>
           </div>
+        ) : filteredRooms.length === 0 ? (
+          <div className="text-center py-12 bg-card rounded-xl border border-dashed">
+            <Search className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-30" />
+            <p className="text-muted-foreground">No room matching "{qrSearchQuery}" found.</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {roomServices.map((room) => {
+            {filteredRooms.map((room) => {
               const roomIdentifier = room.room_number || room.name_en;
               const qrUrl = `https://royalhotelmenu.vercel.app/?mode=room&room=${encodeURIComponent(roomIdentifier)}`;
               return (
