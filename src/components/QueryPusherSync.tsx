@@ -64,6 +64,7 @@ export const QueryPusherSync = () => {
 
     const handleOrderStatusChanged = () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
     };
 
     ordersChannel.bind('order-placed', handleOrderPlaced);

@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import QRCode from "react-qr-code";
-import { LayoutDashboard, Search, MessageSquare, Plus, Star, Trash2, Edit, X, Clock, ShoppingBag, CheckCircle, BellRing, Eye, EyeOff, QrCode, ChevronRight, ChevronLeft, Bell, Utensils, Bed } from "lucide-react";
+import { LayoutDashboard, Search, MessageSquare, Plus, Star, Trash2, Edit, X, Clock, ShoppingBag, CheckCircle, BellRing, Eye, EyeOff, QrCode, ChevronRight, ChevronLeft, Bell, Utensils, Bed, Play, Truck } from "lucide-react";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { toast } from "sonner";
 import { useUser, type AdminRole } from "@/contexts/UserContext";
@@ -987,13 +987,54 @@ const AdminPanel = () => {
     </div>
   );
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return (
+          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px] font-bold h-5 uppercase">
+            Pending
+          </Badge>
+        );
+      case 'preparing':
+        return (
+          <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-[10px] font-bold h-5 uppercase animate-pulse">
+            Preparing
+          </Badge>
+        );
+      case 'on_the_way':
+        return (
+          <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 border-indigo-500/20 text-[10px] font-bold h-5 uppercase animate-bounce">
+            On the way
+          </Badge>
+        );
+      case 'completed':
+        return (
+          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-[10px] font-bold h-5 uppercase">
+            Completed
+          </Badge>
+        );
+      case 'cancelled':
+        return (
+          <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-[10px] font-bold h-5 uppercase">
+            Cancelled
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline" className="text-[10px] font-bold h-5 uppercase">
+            {status}
+          </Badge>
+        );
+    }
+  };
+
   const renderOrdersTab = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-foreground">Room Orders</h2>
         <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
           <Clock className="w-3 h-3 mr-1" />
-          {orders.filter(o => o.status === 'pending').length} Pending
+          {orders.filter(o => o.status === 'pending' || o.status === 'preparing' || o.status === 'on_the_way').length} Active
         </Badge>
       </div>
 
@@ -1008,15 +1049,17 @@ const AdminPanel = () => {
 
       <div className="space-y-4">
         {orders.map((order) => (
-          <Card key={order.id} className={order.status === 'pending' ? 'border-primary/30 bg-primary/5' : ''}>
+          <Card key={order.id} className={
+            order.status === 'pending' ? 'border-amber-500/30 bg-amber-500/5' :
+            order.status === 'preparing' ? 'border-blue-500/30 bg-blue-500/5' :
+            order.status === 'on_the_way' ? 'border-indigo-500/30 bg-indigo-500/5' : ''
+          }>
             <CardHeader className="pb-2">
               <div className="flex justify-between items-start">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <CardTitle className="text-lg">Room {order.room_number}</CardTitle>
-                    <Badge variant={order.status === 'completed' ? 'default' : order.status === 'pending' ? 'secondary' : 'outline'} className="text-[10px] h-5">
-                      {order.status.toUpperCase()}
-                    </Badge>
+                    {getStatusBadge(order.status)}
                   </div>
                   <p className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleString()}</p>
                 </div>
@@ -1036,12 +1079,24 @@ const AdminPanel = () => {
                 ))}
               </div>
             </CardContent>
-            {order.status === 'pending' && (
+            {order.status !== 'completed' && order.status !== 'cancelled' && (
               <div className="px-6 pb-4 flex gap-2">
-                <Button size="sm" className="flex-1 gap-1" onClick={() => updateOrderStatus(order.id, 'completed')}>
-                  <CheckCircle className="w-3.5 h-3.5" /> Mark as Completed
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => updateOrderStatus(order.id, 'cancelled')}>
+                {order.status === 'pending' && (
+                  <Button size="sm" className="flex-1 gap-1 bg-amber-500 hover:bg-amber-600 text-white font-bold" onClick={() => updateOrderStatus(order.id, 'preparing')}>
+                    <Play className="w-3.5 h-3.5 animate-pulse" /> Start Preparing
+                  </Button>
+                )}
+                {order.status === 'preparing' && (
+                  <Button size="sm" className="flex-1 gap-1 bg-blue-600 hover:bg-blue-700 text-white font-bold" onClick={() => updateOrderStatus(order.id, 'on_the_way')}>
+                    <Truck className="w-3.5 h-3.5" /> Send on Way
+                  </Button>
+                )}
+                {order.status === 'on_the_way' && (
+                  <Button size="sm" className="flex-1 gap-1 bg-green-600 hover:bg-green-700 text-white font-bold" onClick={() => updateOrderStatus(order.id, 'completed')}>
+                    <CheckCircle className="w-3.5 h-3.5" /> Complete Order
+                  </Button>
+                )}
+                <Button size="sm" variant="outline" className="text-red-500 hover:text-red-600 hover:bg-red-500/10 border-red-500/20 font-bold" onClick={() => updateOrderStatus(order.id, 'cancelled')}>
                   Cancel
                 </Button>
               </div>
@@ -1317,38 +1372,45 @@ const AdminPanel = () => {
   };
 
   const renderDesktopOrdersTab = () => {
-    const pendingOrders = orders.filter(o => o.status === 'pending');
-    const completedOrders = orders.filter(o => o.status !== 'pending');
+    const activeOrders = orders.filter(o => o.status === 'pending' || o.status === 'preparing' || o.status === 'on_the_way');
+    const historyOrders = orders.filter(o => o.status === 'completed' || o.status === 'cancelled');
 
     return (
       <div className="space-y-6 animate-in fade-in duration-300">
         {roomLoading && <div className="text-center text-muted-foreground">{t('messages.loading')}</div>}
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Column 1: Pending Queue */}
+          {/* Column 1: Active Orders Queue */}
           <div className="space-y-4">
             <div className="flex items-center justify-between border-b pb-2">
               <h3 className="font-bold text-base flex items-center gap-2 text-foreground">
-                <Clock className="h-4 w-4 text-blue-500" /> Pending Queue
+                <Clock className="h-4 w-4 text-amber-500" /> Active Orders
               </h3>
-              <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 font-bold">
-                {pendingOrders.length} Orders
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 font-bold">
+                {activeOrders.length} Orders
               </Badge>
             </div>
             
-            {pendingOrders.length === 0 && (
+            {activeOrders.length === 0 && (
               <div className="bg-card p-12 rounded-xl border border-dashed text-center text-muted-foreground text-sm">
-                No pending orders in the queue.
+                No active orders in the queue.
               </div>
             )}
             
             <div className="space-y-4">
-              {pendingOrders.map((order) => (
-                <Card key={order.id} className="border-blue-500/30 bg-blue-500/5 hover:shadow-sm transition-shadow">
+              {activeOrders.map((order) => (
+                <Card key={order.id} className={
+                  order.status === 'pending' ? 'border-amber-500/30 bg-amber-500/5 hover:shadow-sm transition-shadow' :
+                  order.status === 'preparing' ? 'border-blue-500/30 bg-blue-500/5 hover:shadow-sm transition-shadow' :
+                  order.status === 'on_the_way' ? 'border-indigo-500/30 bg-indigo-500/5 hover:shadow-sm transition-shadow' : 'hover:shadow-sm transition-shadow'
+                }>
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
                       <div>
-                        <CardTitle className="text-base font-bold">Room {order.room_number}</CardTitle>
+                        <div className="flex items-center gap-2 mb-1">
+                          <CardTitle className="text-base font-bold">Room {order.room_number}</CardTitle>
+                          {getStatusBadge(order.status)}
+                        </div>
                         <p className="text-[10px] text-muted-foreground">{new Date(order.created_at).toLocaleString()}</p>
                       </div>
                       <div className="text-right">
@@ -1368,10 +1430,22 @@ const AdminPanel = () => {
                     </div>
                   </CardContent>
                   <div className="px-6 pb-4 flex gap-2">
-                    <Button size="sm" className="flex-1 gap-1" onClick={() => updateOrderStatus(order.id, 'completed')}>
-                      <CheckCircle className="w-3.5 h-3.5" /> Complete Order
-                    </Button>
-                    <Button size="sm" variant="outline" className="bg-background" onClick={() => updateOrderStatus(order.id, 'cancelled')}>
+                    {order.status === 'pending' && (
+                      <Button size="sm" className="flex-1 gap-1 bg-amber-500 hover:bg-amber-600 text-white font-bold" onClick={() => updateOrderStatus(order.id, 'preparing')}>
+                        <Play className="w-3.5 h-3.5 animate-pulse" /> Start Preparing
+                      </Button>
+                    )}
+                    {order.status === 'preparing' && (
+                      <Button size="sm" className="flex-1 gap-1 bg-blue-600 hover:bg-blue-700 text-white font-bold" onClick={() => updateOrderStatus(order.id, 'on_the_way')}>
+                        <Truck className="w-3.5 h-3.5" /> Send on Way
+                      </Button>
+                    )}
+                    {order.status === 'on_the_way' && (
+                      <Button size="sm" className="flex-1 gap-1 bg-green-600 hover:bg-green-700 text-white font-bold" onClick={() => updateOrderStatus(order.id, 'completed')}>
+                        <CheckCircle className="w-3.5 h-3.5" /> Complete Order
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" className="text-red-500 hover:text-red-600 hover:bg-red-500/10 border-red-500/20 font-bold" onClick={() => updateOrderStatus(order.id, 'cancelled')}>
                       Cancel
                     </Button>
                   </div>
@@ -1386,28 +1460,26 @@ const AdminPanel = () => {
               <h3 className="font-bold text-base flex items-center gap-2 text-foreground">
                 <CheckCircle className="h-4 w-4 text-green-500" /> Completed & Log
               </h3>
-              <Badge variant="outline" className="bg-zinc-100 dark:bg-zinc-800 text-muted-foreground">
-                {completedOrders.length} Total
+              <Badge variant="outline" className="bg-zinc-100 dark:bg-zinc-800 text-muted-foreground font-bold">
+                {historyOrders.length} Total
               </Badge>
             </div>
             
-            {completedOrders.length === 0 && (
+            {historyOrders.length === 0 && (
               <div className="bg-card p-12 rounded-xl border border-dashed text-center text-muted-foreground text-sm">
                 No archived orders.
               </div>
             )}
             
             <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
-              {completedOrders.map((order) => (
+              {historyOrders.map((order) => (
                 <Card key={order.id} className="opacity-75 hover:opacity-100 transition-opacity">
                   <CardContent className="py-3">
                     <div className="flex justify-between items-center">
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-sm">Room {order.room_number}</span>
-                          <Badge variant={order.status === 'completed' ? 'default' : 'destructive'} className="text-[8px] h-4 leading-none uppercase font-bold">
-                            {order.status}
-                          </Badge>
+                          {getStatusBadge(order.status)}
                         </div>
                         <p className="text-[10px] text-muted-foreground">{new Date(order.created_at).toLocaleString()}</p>
                       </div>
@@ -1994,22 +2066,31 @@ const AdminPanel = () => {
                 <CardHeader className="border-b pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm font-bold uppercase tracking-wider">Recent Orders</CardTitle>
-                    <Badge variant="outline">{orders.filter(o => o.status === 'pending').length} pending</Badge>
+                    <Badge variant="outline">{orders.filter(o => o.status === 'pending' || o.status === 'preparing' || o.status === 'on_the_way').length} active</Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="flex-1 overflow-y-auto py-4">
-                  {orders.filter(o => o.status === 'pending').length === 0 ? (
+                  {orders.filter(o => o.status === 'pending' || o.status === 'preparing' || o.status === 'on_the_way').length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-sm">
                       <ShoppingBag className="h-8 w-8 text-blue-500 mb-2 opacity-40" />
-                      No pending orders
+                      No active orders
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {orders.filter(o => o.status === 'pending').slice(0, 5).map(order => (
-                        <div key={order.id} className="p-3 rounded-lg border bg-muted/20 space-y-2">
+                      {orders.filter(o => o.status === 'pending' || o.status === 'preparing' || o.status === 'on_the_way').slice(0, 5).map(order => (
+                        <div key={order.id} className="p-3 rounded-lg border bg-muted/20 space-y-2 animate-in fade-in">
                           <div className="flex justify-between items-center">
                             <div>
-                              <p className="font-bold text-sm">Room {order.room_number}</p>
+                              <div className="flex items-center gap-1.5">
+                                <p className="font-bold text-sm">Room {order.room_number}</p>
+                                <span className={`text-[8px] px-1.5 py-0.5 rounded font-bold uppercase ${
+                                  order.status === 'pending' ? 'bg-amber-500/10 text-amber-600' :
+                                  order.status === 'preparing' ? 'bg-blue-500/10 text-blue-600' :
+                                  'bg-indigo-500/10 text-indigo-600'
+                                }`}>
+                                  {order.status.replace('_', ' ')}
+                                </span>
+                              </div>
                               <p className="text-[10px] text-muted-foreground">{new Date(order.created_at).toLocaleTimeString()}</p>
                             </div>
                             <div className="text-right">
@@ -2021,8 +2102,16 @@ const AdminPanel = () => {
                             {order.items.map((it, i) => `${it.quantity}x ${it.name_en}`).join(', ')}
                           </div>
                           <div className="flex gap-2 justify-end pt-1">
-                            <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => updateOrderStatus(order.id, 'cancelled')}>Cancel</Button>
-                            <Button size="sm" className="h-7 text-[10px]" onClick={() => updateOrderStatus(order.id, 'completed')}>Complete</Button>
+                            {order.status === 'pending' && (
+                              <Button size="sm" className="h-7 text-[10px] bg-amber-500 hover:bg-amber-600 text-white font-bold" onClick={() => updateOrderStatus(order.id, 'preparing')}>Start Prep</Button>
+                            )}
+                            {order.status === 'preparing' && (
+                              <Button size="sm" className="h-7 text-[10px] bg-blue-600 hover:bg-blue-700 text-white font-bold" onClick={() => updateOrderStatus(order.id, 'on_the_way')}>Send Way</Button>
+                            )}
+                            {order.status === 'on_the_way' && (
+                              <Button size="sm" className="h-7 text-[10px] bg-green-600 hover:bg-green-700 text-white font-bold" onClick={() => updateOrderStatus(order.id, 'completed')}>Complete</Button>
+                            )}
+                            <Button size="sm" variant="outline" className="h-7 text-[10px] text-red-500 border-red-500/20" onClick={() => updateOrderStatus(order.id, 'cancelled')}>Cancel</Button>
                           </div>
                         </div>
                       ))}

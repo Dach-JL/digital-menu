@@ -83,7 +83,12 @@ export const useRoomStore = create<RoomState>((set, get) => ({
 
       const result = await response.json();
       if (result.success) {
-        toast.success('Order placed successfully!');
+        toast.success('Order placed successfully!', {
+          action: {
+            label: 'Track Order',
+            onClick: () => { window.location.href = '/order-status'; }
+          }
+        });
         
         // Notify admin in real-time
         notifyAdmin('order', { 
@@ -93,6 +98,10 @@ export const useRoomStore = create<RoomState>((set, get) => ({
         });
         
         clearCart();
+
+        setTimeout(() => {
+          window.location.href = '/order-status';
+        }, 1200);
       } else {
         toast.error(result.error || 'Failed to place order');
       }

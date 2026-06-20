@@ -23,23 +23,67 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     switch (req.method) {
       case 'GET': {
-        const rows = await db.select({
-          order_id: roomOrders.id,
-          room_number: roomOrders.room_number,
-          total_price: roomOrders.total_price,
-          status: roomOrders.status,
-          created_at: roomOrders.created_at,
-          item_id: orderItems.id,
-          service_id: orderItems.service_id,
-          quantity: orderItems.quantity,
-          price: orderItems.price,
-          name_en: services.name_en,
-          image_url: services.image_url
-        })
-        .from(roomOrders)
-        .leftJoin(orderItems, eq(orderItems.order_id, roomOrders.id))
-        .leftJoin(services, eq(services.id, orderItems.service_id))
-        .orderBy(desc(roomOrders.created_at));
+        const orderIdParam = req.query.id ? parseInt(req.query.id as string, 10) : null;
+        const roomParam = req.query.room as string || null;
+
+        let rows;
+        if (orderIdParam) {
+          rows = await db.select({
+            order_id: roomOrders.id,
+            room_number: roomOrders.room_number,
+            total_price: roomOrders.total_price,
+            status: roomOrders.status,
+            created_at: roomOrders.created_at,
+            item_id: orderItems.id,
+            service_id: orderItems.service_id,
+            quantity: orderItems.quantity,
+            price: orderItems.price,
+            name_en: services.name_en,
+            image_url: services.image_url
+          })
+          .from(roomOrders)
+          .leftJoin(orderItems, eq(orderItems.order_id, roomOrders.id))
+          .leftJoin(services, eq(services.id, orderItems.service_id))
+          .where(eq(roomOrders.id, orderIdParam))
+          .orderBy(desc(roomOrders.created_at));
+        } else if (roomParam) {
+          rows = await db.select({
+            order_id: roomOrders.id,
+            room_number: roomOrders.room_number,
+            total_price: roomOrders.total_price,
+            status: roomOrders.status,
+            created_at: roomOrders.created_at,
+            item_id: orderItems.id,
+            service_id: orderItems.service_id,
+            quantity: orderItems.quantity,
+            price: orderItems.price,
+            name_en: services.name_en,
+            image_url: services.image_url
+          })
+          .from(roomOrders)
+          .leftJoin(orderItems, eq(orderItems.order_id, roomOrders.id))
+          .leftJoin(services, eq(services.id, orderItems.service_id))
+          .where(eq(roomOrders.room_number, roomParam))
+          .orderBy(desc(roomOrders.created_at));
+        } else {
+          rows = await db.select({
+            order_id: roomOrders.id,
+            room_number: roomOrders.room_number,
+            total_price: roomOrders.total_price,
+            status: roomOrders.status,
+            created_at: roomOrders.created_at,
+            item_id: orderItems.id,
+            service_id: orderItems.service_id,
+            quantity: orderItems.quantity,
+            price: orderItems.price,
+            name_en: services.name_en,
+            image_url: services.image_url
+          })
+          .from(roomOrders)
+          .leftJoin(orderItems, eq(orderItems.order_id, roomOrders.id))
+          .leftJoin(services, eq(services.id, orderItems.service_id))
+          .orderBy(desc(roomOrders.created_at));
+        }
 
         // Group the flat query results by order ID
         const ordersMap = new Map();

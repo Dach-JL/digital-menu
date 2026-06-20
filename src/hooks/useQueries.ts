@@ -39,7 +39,7 @@ export interface RoomOrder {
   id: number;
   room_number: string;
   total_price: number;
-  status: 'pending' | 'completed' | 'cancelled';
+  status: 'pending' | 'preparing' | 'on_the_way' | 'completed' | 'cancelled';
   created_at: string;
   items: OrderItem[];
 }
@@ -363,5 +363,19 @@ export function useUpdateCallStatusMutation() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'calls'] });
     },
+  });
+}
+
+export function useRoomOrders(roomNumber: string | null) {
+  return useQuery<RoomOrder[]>({
+    queryKey: ['orders', 'room', roomNumber],
+    queryFn: async () => {
+      if (!roomNumber) return [];
+      const res = await fetch(apiUrl(`/orders.php?room=${encodeURIComponent(roomNumber)}`));
+      if (!res.ok) throw new Error('Failed to fetch room orders.');
+      return res.json();
+    },
+    enabled: !!roomNumber,
+    staleTime: 30 * 1000,
   });
 }

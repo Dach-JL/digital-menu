@@ -13,6 +13,7 @@ import AdminPanel from "./pages/AdminPanel";
 import NotFound from "./pages/NotFound";
 import ProductDetail from "./pages/ProductDetail";
 import AboutUs from "./pages/AboutUs";
+import OrderStatus from "./pages/OrderStatus";
 
 import { CurrencyProvider } from "./contexts/CurrencyContext";
 import CurrencySettings from "./pages/CurrencySettings";
@@ -51,6 +52,7 @@ const App = () => (
                   <Route path="/feedback" element={<Feedback />} />
                   <Route path="/favorites" element={<Favorites />} />
                   <Route path="/admin" element={<AdminPanel />} />
+                  <Route path="/order-status" element={<OrderStatus />} />
                   <Route path="/product/:id" element={<ProductDetail />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
