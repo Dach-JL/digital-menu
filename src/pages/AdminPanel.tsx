@@ -689,55 +689,85 @@ const AdminPanel = () => {
   );
 
   const renderOrderFilters = () => (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-muted/20 border border-border/40 rounded-xl mb-6">
-      {/* Search Room */}
-      <div className="space-y-1">
-        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Search Room</span>
-        <div className="relative">
-          <Input
-            placeholder="Room number..."
-            value={orderRoomFilter}
-            onChange={(e) => setOrderRoomFilter(e.target.value)}
-            className="pl-9 bg-background h-10 text-sm"
-          />
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+    <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 p-4 bg-muted/20 border border-border/40 rounded-xl mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
+        {/* Search Room */}
+        <div className="space-y-1">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Search Room</span>
+          <div className="relative">
+            <Input
+              placeholder="Room number..."
+              value={orderRoomFilter}
+              onChange={(e) => setOrderRoomFilter(e.target.value)}
+              className="pl-9 bg-background h-10 text-sm"
+            />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          </div>
+        </div>
+
+        {/* Status Filter */}
+        <div className="space-y-1">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Status</span>
+          <Select value={orderStatusFilter} onValueChange={setOrderStatusFilter}>
+            <SelectTrigger className="bg-background">
+              <SelectValue placeholder="All Orders" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Orders</SelectItem>
+              <SelectItem value="active">Active (Pending/Prep/Way)</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="preparing">Preparing</SelectItem>
+              <SelectItem value="on_the_way">On The Way</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Sort By */}
+        <div className="space-y-1">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Sort By</span>
+          <Select value={orderSortBy} onValueChange={setOrderSortBy}>
+            <SelectTrigger className="bg-background">
+              <SelectValue placeholder="Newest First" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest First</SelectItem>
+              <SelectItem value="oldest">Oldest First</SelectItem>
+              <SelectItem value="price_desc">Price: High to Low</SelectItem>
+              <SelectItem value="price_asc">Price: Low to High</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      {/* Status Filter */}
-      <div className="space-y-1">
-        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Status</span>
-        <Select value={orderStatusFilter} onValueChange={setOrderStatusFilter}>
-          <SelectTrigger className="bg-background">
-            <SelectValue placeholder="All Orders" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Orders</SelectItem>
-            <SelectItem value="active">Active (Pending/Prep/Way)</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="preparing">Preparing</SelectItem>
-            <SelectItem value="on_the_way">On The Way</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Sort By */}
-      <div className="space-y-1">
-        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Sort By</span>
-        <Select value={orderSortBy} onValueChange={setOrderSortBy}>
-          <SelectTrigger className="bg-background">
-            <SelectValue placeholder="Newest First" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="newest">Newest First</SelectItem>
-            <SelectItem value="oldest">Oldest First</SelectItem>
-            <SelectItem value="price_desc">Price: High to Low</SelectItem>
-            <SelectItem value="price_asc">Price: Low to High</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {hasLogs && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button 
+              variant="outline" 
+              className="text-red-500 hover:text-red-600 hover:bg-red-500/10 border-red-500/20 gap-1.5 h-10 font-semibold shrink-0"
+            >
+              <Trash2 className="w-4 h-4" />
+              Clear Logs
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Clear Order History?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action will permanently delete all completed and cancelled orders from the database. Active orders (pending, preparing, or on the way) will not be affected.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleClearOrders} className="bg-red-600 hover:bg-red-700 text-white font-semibold">
+                Clear Logs
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 
@@ -1141,34 +1171,6 @@ const AdminPanel = () => {
             {orders.filter(o => o.status === 'pending' || o.status === 'preparing' || o.status === 'on_the_way').length} Active
           </Badge>
         </div>
-        {!roomLoading && hasLogs && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="text-red-500 hover:text-red-600 hover:bg-red-500/10 border-red-500/20 gap-1.5 h-8 font-semibold"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Clear Logs
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Clear Order History?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action will permanently delete all completed and cancelled orders from the database. Active orders (pending, preparing, or on the way) will not be affected.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleClearOrders} className="bg-red-600 hover:bg-red-700 text-white font-semibold">
-                  Clear Logs
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
       </div>
 
       {!roomLoading && orders.length > 0 && renderOrderFilters()}
@@ -1515,11 +1517,13 @@ const AdminPanel = () => {
   };
 
   const renderDesktopOrdersTab = () => {
-    const activeOrders = orders.filter(o => o.status === 'pending' || o.status === 'preparing' || o.status === 'on_the_way');
-    const historyOrders = orders.filter(o => o.status === 'completed' || o.status === 'cancelled');
+    const activeOrders = filteredOrders.filter(o => o.status === 'pending' || o.status === 'preparing' || o.status === 'on_the_way');
+    const historyOrders = filteredOrders.filter(o => o.status === 'completed' || o.status === 'cancelled');
 
     return (
       <div className="space-y-6 animate-in fade-in duration-300">
+        {!roomLoading && orders.length > 0 && renderOrderFilters()}
+
         {roomLoading && <div className="text-center text-muted-foreground">{t('messages.loading')}</div>}
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
