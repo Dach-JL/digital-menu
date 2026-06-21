@@ -1,12 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getDb } from './_db.js';
 import { roomOrders, orderItems, services } from './_schema.js';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, or, inArray } from 'drizzle-orm';
 import { triggerPusherEvent } from './_pusher.js';
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
@@ -190,6 +190,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await triggerPusherEvent('admin-orders', 'order-status-changed', { id, status });
         
         return res.json({ success: true });
+      }
+
+      case 'DELETE': {
+        // Find completed/cancelled orders
+        const targetOrders = await db.select({ id: roomOrders.id })
+          .from(roomOrders)
+          .where(
+            or(
+              eq(roomOrders.status, 'completed'),
+              eq(roomOrders.status, 'cancelled')
+            )
+          );
+        
+        if (targetOrders.length > 0) {
+          const ids = targetOrders.map((o: { id: number }) => o.id);
+          // Delete from orderItems first to avoid orphans
+          await db.delete(orderItems).where(inArray(orderItems.order_id, ids));
+          // Delete from roomOrders
+          await db.delete(roomOrders).where(inArray(roomOrders.id, ids));
+        }
+
+        // Broadcast to trigger refetches in real-time
+        await triggerPusherEvent('admin-orders', 'orders-cleared', {});
+
+        return res.json({ success: true, clearedCount: targetOrders.length });
       }
 
       default:

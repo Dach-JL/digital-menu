@@ -31,6 +31,7 @@ import {
   useDeleteServiceMutation,
   useUpdateOrderStatusMutation,
   useUpdateCallStatusMutation,
+  useClearOrdersMutation,
   type Service,
   type RoomOrder,
   type WaiterCall,
@@ -89,6 +90,9 @@ const AdminPanel = () => {
   const [callStatusFilter, setCallStatusFilter] = useState("pending");
   const [callRoomFilter, setCallRoomFilter] = useState("");
   const [callSortBy, setCallSortBy] = useState("newest");
+  const [orderStatusFilter, setOrderStatusFilter] = useState("all");
+  const [orderRoomFilter, setOrderRoomFilter] = useState("");
+  const [orderSortBy, setOrderSortBy] = useState("newest");
 
   // Reset subcategory filter when the main category tab changes
   useEffect(() => {
@@ -106,6 +110,11 @@ const AdminPanel = () => {
   const deleteServiceMutation = useDeleteServiceMutation();
   const updateOrderStatusMutation = useUpdateOrderStatusMutation();
   const updateCallStatusMutation = useUpdateCallStatusMutation();
+  const clearOrdersMutation = useClearOrdersMutation();
+
+  const handleClearOrders = () => {
+    clearOrdersMutation.mutate();
+  };
 
   // Map to local variables for component rendering
   const loading = servicesLoading;
@@ -449,6 +458,47 @@ const AdminPanel = () => {
     return list;
   }, [calls, callStatusFilter, callRoomFilter, callSortBy]);
 
+  // Filtered and sorted room orders
+  const filteredOrders = useMemo(() => {
+    let list = [...orders];
+
+    // 1. Filter by status
+    if (orderStatusFilter !== "all") {
+      if (orderStatusFilter === "active") {
+        list = list.filter(o => o.status === 'pending' || o.status === 'preparing' || o.status === 'on_the_way');
+      } else {
+        list = list.filter(o => o.status === orderStatusFilter);
+      }
+    }
+
+    // 2. Filter by room number
+    if (orderRoomFilter.trim() !== "") {
+      const targetQuery = orderRoomFilter.toLowerCase().trim();
+      list = list.filter(o => o.room_number.toLowerCase().includes(targetQuery));
+    }
+
+    // 3. Sort by selection
+    list.sort((a, b) => {
+      if (orderSortBy === 'oldest') {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
+      if (orderSortBy === 'price_desc') {
+        return b.total_price - a.total_price;
+      }
+      if (orderSortBy === 'price_asc') {
+        return a.total_price - b.total_price;
+      }
+      // default: newest date first
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+    return list;
+  }, [orders, orderStatusFilter, orderRoomFilter, orderSortBy]);
+
+  const hasLogs = useMemo(() => {
+    return orders.some(o => o.status === 'completed' || o.status === 'cancelled');
+  }, [orders]);
+
   // Role label for the admin badge
   const getRoleBadgeLabel = () => {
     switch (userRole) {
@@ -632,6 +682,59 @@ const AdminPanel = () => {
           <SelectContent>
             <SelectItem value="newest">Newest First</SelectItem>
             <SelectItem value="oldest">Oldest First</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+
+  const renderOrderFilters = () => (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-muted/20 border border-border/40 rounded-xl mb-6">
+      {/* Search Room */}
+      <div className="space-y-1">
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Search Room</span>
+        <div className="relative">
+          <Input
+            placeholder="Room number..."
+            value={orderRoomFilter}
+            onChange={(e) => setOrderRoomFilter(e.target.value)}
+            className="pl-9 bg-background h-10 text-sm"
+          />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        </div>
+      </div>
+
+      {/* Status Filter */}
+      <div className="space-y-1">
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Status</span>
+        <Select value={orderStatusFilter} onValueChange={setOrderStatusFilter}>
+          <SelectTrigger className="bg-background">
+            <SelectValue placeholder="All Orders" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Orders</SelectItem>
+            <SelectItem value="active">Active (Pending/Prep/Way)</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="preparing">Preparing</SelectItem>
+            <SelectItem value="on_the_way">On The Way</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="cancelled">Cancelled</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Sort By */}
+      <div className="space-y-1">
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-1">Sort By</span>
+        <Select value={orderSortBy} onValueChange={setOrderSortBy}>
+          <SelectTrigger className="bg-background">
+            <SelectValue placeholder="Newest First" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="newest">Newest First</SelectItem>
+            <SelectItem value="oldest">Oldest First</SelectItem>
+            <SelectItem value="price_desc">Price: High to Low</SelectItem>
+            <SelectItem value="price_asc">Price: Low to High</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -1031,12 +1134,44 @@ const AdminPanel = () => {
   const renderOrdersTab = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-foreground">Room Orders</h2>
-        <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
-          <Clock className="w-3 h-3 mr-1" />
-          {orders.filter(o => o.status === 'pending' || o.status === 'preparing' || o.status === 'on_the_way').length} Active
-        </Badge>
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-semibold text-foreground">Room Orders</h2>
+          <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
+            <Clock className="w-3 h-3 mr-1" />
+            {orders.filter(o => o.status === 'pending' || o.status === 'preparing' || o.status === 'on_the_way').length} Active
+          </Badge>
+        </div>
+        {!roomLoading && hasLogs && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-red-500 hover:text-red-600 hover:bg-red-500/10 border-red-500/20 gap-1.5 h-8 font-semibold"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Clear Logs
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Clear Order History?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action will permanently delete all completed and cancelled orders from the database. Active orders (pending, preparing, or on the way) will not be affected.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleClearOrders} className="bg-red-600 hover:bg-red-700 text-white font-semibold">
+                  Clear Logs
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
+
+      {!roomLoading && orders.length > 0 && renderOrderFilters()}
 
       {roomLoading && <p>{t('messages.loading')}</p>}
       {!roomLoading && orders.length === 0 && (
@@ -1047,8 +1182,16 @@ const AdminPanel = () => {
         </div>
       )}
 
+      {!roomLoading && orders.length > 0 && filteredOrders.length === 0 && (
+        <div className="bg-card p-12 rounded-2xl border text-center">
+          <ShoppingBag className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-40" />
+          <h3 className="font-semibold text-foreground mb-1">No matching orders</h3>
+          <p className="text-sm text-muted-foreground">Try adjusting your status or room filters.</p>
+        </div>
+      )}
+
       <div className="space-y-4">
-        {orders.map((order) => (
+        {filteredOrders.map((order) => (
           <Card key={order.id} className={
             order.status === 'pending' ? 'border-amber-500/30 bg-amber-500/5' :
             order.status === 'preparing' ? 'border-blue-500/30 bg-blue-500/5' :

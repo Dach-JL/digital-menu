@@ -366,6 +366,45 @@ export function useUpdateCallStatusMutation() {
   });
 }
 
+export function useClearOrdersMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch(apiUrl('/orders.php'), {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error('Failed to clear completed/cancelled orders.');
+      return res.json();
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['admin', 'orders'] });
+      const previousOrders = queryClient.getQueryData<RoomOrder[]>(['admin', 'orders']) || [];
+
+      // Optimistically keep only active orders
+      const updatedOrders = previousOrders.filter(o => 
+        o.status !== 'completed' && o.status !== 'cancelled'
+      );
+      queryClient.setQueryData<RoomOrder[]>(['admin', 'orders'], updatedOrders);
+
+      return { previousOrders };
+    },
+    onError: (err, variables, context) => {
+      if (context) {
+        queryClient.setQueryData(['admin', 'orders'], context.previousOrders);
+      }
+      toast.error('Failed to clear completed/cancelled orders.');
+    },
+    onSuccess: (data) => {
+      toast.success(`Cleared ${data.clearedCount || 0} completed/cancelled orders.`);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
+    },
+  });
+}
+
 export function useRoomOrders(roomNumber: string | null) {
   return useQuery<RoomOrder[]>({
     queryKey: ['orders', 'room', roomNumber],

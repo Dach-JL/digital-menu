@@ -67,8 +67,14 @@ export const QueryPusherSync = () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
     };
 
+    const handleOrdersCleared = () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    };
+
     ordersChannel.bind('order-placed', handleOrderPlaced);
     ordersChannel.bind('order-status-changed', handleOrderStatusChanged);
+    ordersChannel.bind('orders-cleared', handleOrdersCleared);
 
     // 3. Subscribe to admin-calls
     const callsChannel = pusherClient.subscribe('admin-calls');
@@ -110,6 +116,7 @@ export const QueryPusherSync = () => {
 
       ordersChannel.unbind('order-placed', handleOrderPlaced);
       ordersChannel.unbind('order-status-changed', handleOrderStatusChanged);
+      ordersChannel.unbind('orders-cleared', handleOrdersCleared);
       pusherClient.unsubscribe('admin-orders');
 
       callsChannel.unbind('call-placed', handleCallPlaced);
