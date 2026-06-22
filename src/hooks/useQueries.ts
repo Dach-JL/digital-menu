@@ -230,7 +230,7 @@ export function useToggleAvailabilityMutation() {
       toast.success(variables.isAvailable ? 'Item is now available' : 'Item is now hidden');
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['services'] });
+      queryClient.invalidateQueries({ queryKey: ['services', { admin: true }] });
     },
   });
 }
@@ -279,7 +279,7 @@ export function useDeleteServiceMutation() {
       toast.success('Service deleted successfully!');
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['services'] });
+      queryClient.invalidateQueries({ queryKey: ['services', { admin: true }] });
     },
   });
 }

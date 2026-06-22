@@ -297,7 +297,7 @@ const AdminPanel = () => {
       loading: `${editingService ? 'Updating' : 'Adding'} service...`,
       success: (res: any) => {
           invalidateCachedAdminServices();
-          queryClient.invalidateQueries({ queryKey: ['services'] });
+          queryClient.invalidateQueries({ queryKey: ['services', { admin: true }] });
           setIsFormOpen(false);
           return `Service ${editingService ? 'updated' : 'added'} successfully!`;
       },

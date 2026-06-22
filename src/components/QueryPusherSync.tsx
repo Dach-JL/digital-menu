@@ -27,7 +27,7 @@ export const QueryPusherSync = () => {
         return [newService, ...oldData];
       });
 
-      queryClient.invalidateQueries({ queryKey: ['services'] });
+      queryClient.invalidateQueries({ queryKey: ['services', { admin: true }] });
     };
 
     const handleServiceUpdated = (updatedService: any) => {
@@ -55,7 +55,7 @@ export const QueryPusherSync = () => {
         return oldData.map(s => String(s.id) === String(updatedService.id) ? { ...s, ...updatedService } : s);
       });
 
-      queryClient.invalidateQueries({ queryKey: ['services'] });
+      queryClient.invalidateQueries({ queryKey: ['services', { admin: true }] });
     };
 
     const handleServiceDeleted = (data: { id: number }) => {
@@ -73,7 +73,7 @@ export const QueryPusherSync = () => {
         return oldData.filter(s => String(s.id) !== String(deletedId));
       });
 
-      queryClient.invalidateQueries({ queryKey: ['services'] });
+      queryClient.invalidateQueries({ queryKey: ['services', { admin: true }] });
     };
 
     menuChannel.bind('service-created', handleServiceCreated);

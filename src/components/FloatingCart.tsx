@@ -25,9 +25,9 @@ export const FloatingCart = () => {
     const unavailableIds: number[] = [];
 
     cart.forEach(item => {
-      const dbService = serviceMap.get(item.id);
+      const dbService = serviceMap.get(Number(item.id));
       if (!dbService || !dbService.is_available) {
-        unavailableIds.push(item.id);
+        unavailableIds.push(Number(item.id));
       }
     });
 

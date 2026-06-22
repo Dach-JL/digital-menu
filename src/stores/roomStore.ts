@@ -35,14 +35,15 @@ export const useRoomStore = create<RoomState>((set, get) => ({
 
   addToCart: (item) => {
     set((state) => {
-      const existing = state.cart.find((i) => i.id === item.id);
+      const itemId = Number(item.id);
+      const existing = state.cart.find((i) => Number(i.id) === itemId);
       let updatedCart;
       if (existing) {
         updatedCart = state.cart.map((i) =>
-          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+          Number(i.id) === itemId ? { ...i, quantity: i.quantity + 1 } : i
         );
       } else {
-        updatedCart = [...state.cart, { ...item, quantity: 1 }];
+        updatedCart = [...state.cart, { ...item, id: itemId, quantity: 1 }];
       }
       return { cart: updatedCart };
     });
@@ -51,7 +52,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
 
   removeFromCart: (id) => {
     set((state) => ({
-      cart: state.cart.filter((i) => i.id !== id)
+      cart: state.cart.filter((i) => Number(i.id) !== Number(id))
     }));
   },
 
@@ -61,7 +62,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       return;
     }
     set((state) => ({
-      cart: state.cart.map((i) => (i.id === id ? { ...i, quantity } : i))
+      cart: state.cart.map((i) => (Number(i.id) === Number(id) ? { ...i, quantity } : i))
     }));
   },
 
@@ -118,8 +119,9 @@ export const useRoomStore = create<RoomState>((set, get) => ({
             duration: 6000
           });
           // Purge the out-of-stock items from the cart
+          const unavailableSet = new Set(result.unavailableIds.map(Number));
           set((state) => ({
-            cart: state.cart.filter((item) => !result.unavailableIds.includes(item.id))
+            cart: state.cart.filter((item) => !unavailableSet.has(Number(item.id)))
           }));
         } else {
           toast.error(result.error || 'Failed to place order');
