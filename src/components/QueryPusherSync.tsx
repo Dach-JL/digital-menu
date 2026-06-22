@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { pusherClient } from '@/config/pusher';
 import { toast } from 'sonner';
+import { apiUrl } from '@/config/api';
 
 export const QueryPusherSync = () => {
   const queryClient = useQueryClient();
@@ -27,6 +28,26 @@ export const QueryPusherSync = () => {
         return [newService, ...oldData];
       });
 
+      // Newly created service has base64 image stripped in Pusher payload.
+      // Trigger a cache-busted fetch to get full service details (including image) from DB.
+      fetch(apiUrl('/services.php?cb=' + Date.now()))
+        .then(res => res.json())
+        .then(freshData => {
+          if (Array.isArray(freshData)) {
+            queryClient.setQueryData(['services', { admin: false }], freshData);
+          }
+        })
+        .catch(err => console.error('Failed to refetch services with cache buster:', err));
+
+      fetch(apiUrl('/services.php?admin=1&cb=' + Date.now()))
+        .then(res => res.json())
+        .then(freshData => {
+          if (Array.isArray(freshData)) {
+            queryClient.setQueryData(['services', { admin: true }], freshData);
+          }
+        })
+        .catch(err => console.error('Failed to refetch admin services with cache buster:', err));
+
       queryClient.invalidateQueries({ queryKey: ['services', { admin: true }] });
     };
 
@@ -42,9 +63,29 @@ export const QueryPusherSync = () => {
         
         const exists = oldData.some(s => String(s.id) === String(updatedService.id));
         if (exists) {
-          return oldData.map(s => String(s.id) === String(updatedService.id) ? { ...s, ...updatedService } : s);
+          return oldData.map(s => {
+            if (String(s.id) === String(updatedService.id)) {
+              return {
+                ...s,
+                ...updatedService,
+                image_url: updatedService.image_url || s.image_url || '' // Preserve existing image if stripped
+              };
+            }
+            return s;
+          });
         } else {
-          // Add if it was previously hidden and is now available
+          // It was previously hidden and is now available, but its image is stripped from Pusher payload.
+          // Trigger a cache-busted fetch to get the full service details (including image) from DB.
+          fetch(apiUrl('/services.php?cb=' + Date.now()))
+            .then(res => res.json())
+            .then(freshData => {
+              if (Array.isArray(freshData)) {
+                queryClient.setQueryData(['services', { admin: false }], freshData);
+              }
+            })
+            .catch(err => console.error('Failed to refetch services with cache buster:', err));
+          
+          // Return the old data for now (or append the item with a placeholder)
           return [updatedService, ...oldData];
         }
       });
@@ -52,7 +93,16 @@ export const QueryPusherSync = () => {
       // 2. Update admin services list (admin: true)
       queryClient.setQueryData<any[]>(['services', { admin: true }], (oldData) => {
         if (!oldData) return oldData;
-        return oldData.map(s => String(s.id) === String(updatedService.id) ? { ...s, ...updatedService } : s);
+        return oldData.map(s => {
+          if (String(s.id) === String(updatedService.id)) {
+            return {
+              ...s,
+              ...updatedService,
+              image_url: updatedService.image_url || s.image_url || '' // Preserve existing image
+            };
+          }
+          return s;
+        });
       });
 
       queryClient.invalidateQueries({ queryKey: ['services', { admin: true }] });
