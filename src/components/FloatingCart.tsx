@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { useServices } from '@/hooks/useQueries';
 import { uploadsUrl } from '@/config/api';
 import { useRoomMode } from '@/contexts/RoomContext';
 import { Button } from '@/components/ui/button';
@@ -11,6 +13,34 @@ import { Separator } from '@/components/ui/separator';
 export const FloatingCart = () => {
   const navigate = useNavigate();
   const { isRoomMode, cart, updateQuantity, removeFromCart, placeOrder } = useRoomMode();
+  
+  // Retrieve the cached services list
+  const { data: services = [] } = useServices();
+
+  // Proactively check cart items against database availability
+  useEffect(() => {
+    if (services.length === 0 || cart.length === 0) return;
+
+    const serviceMap = new Map(services.map(s => [s.id, s]));
+    const unavailableIds: number[] = [];
+
+    cart.forEach(item => {
+      const dbService = serviceMap.get(item.id);
+      if (!dbService || !dbService.is_available) {
+        unavailableIds.push(item.id);
+      }
+    });
+
+    if (unavailableIds.length > 0) {
+      // Remove all hidden/deleted items from the cart
+      unavailableIds.forEach(id => {
+        removeFromCart(id);
+      });
+      toast.warning('Some items in your cart are currently out of stock and have been removed.', {
+        id: 'cart-sync-warning', // Prevents showing duplicate warning toasts
+      });
+    }
+  }, [services, cart, removeFromCart]);
 
   if (!isRoomMode || cart.length === 0) return null;
 

@@ -126,6 +126,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(429).json({ error: 'Too many requests. Please wait before placing another order.' });
         }
 
+        // Verify item availability in the database before proceeding
+        const itemIds: number[] = Array.from(new Set(items.map((item: any) => Number(item.id))));
+        const activeServices = await db.select({
+          id: services.id,
+          name_en: services.name_en,
+          is_available: services.is_available
+        })
+        .from(services)
+        .where(inArray(services.id, itemIds));
+
+        const serviceMap = new Map(activeServices.map(s => [s.id, s]));
+        const unavailableItems: Array<{ id: number; name_en: string }> = [];
+
+        for (const item of items) {
+          const dbService = serviceMap.get(item.id);
+          if (!dbService || !dbService.is_available) {
+            unavailableItems.push({
+              id: item.id,
+              name_en: item.name_en || (dbService ? dbService.name_en : 'Unknown Item')
+            });
+          }
+        }
+
+        if (unavailableItems.length > 0) {
+          return res.status(422).json({
+            error: 'UNAVAILABLE_ITEMS',
+            message: `${unavailableItems.map(i => i.name_en).join(', ')} is currently out of stock.`,
+            unavailableIds: unavailableItems.map(i => i.id)
+          });
+        }
+
         let total_price = 0;
         for (const item of items) {
           total_price += item.price * item.quantity;

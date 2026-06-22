@@ -113,7 +113,17 @@ export const useRoomStore = create<RoomState>((set, get) => ({
           }
         }, 1200);
       } else {
-        toast.error(result.error || 'Failed to place order');
+        if (result.error === 'UNAVAILABLE_ITEMS' && Array.isArray(result.unavailableIds)) {
+          toast.error(result.message || 'Some items are no longer available and have been removed.', {
+            duration: 6000
+          });
+          // Purge the out-of-stock items from the cart
+          set((state) => ({
+            cart: state.cart.filter((item) => !result.unavailableIds.includes(item.id))
+          }));
+        } else {
+          toast.error(result.error || 'Failed to place order');
+        }
       }
     } catch (error) {
       toast.error('Error connecting to server');

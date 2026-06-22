@@ -10,15 +10,69 @@ export const QueryPusherSync = () => {
     // 1. Subscribe to menu-updates
     const menuChannel = pusherClient.subscribe('menu-updates');
 
-    const handleServiceCreated = () => {
+    const handleServiceCreated = (newService: any) => {
+      // 1. Update guest menu services list (admin: false)
+      queryClient.setQueryData<any[]>(['services', { admin: false }], (oldData) => {
+        if (!oldData) return oldData;
+        const isAvailable = newService.is_available === true || Number(newService.is_available) === 1;
+        if (!isAvailable) return oldData;
+        if (oldData.some(s => String(s.id) === String(newService.id))) return oldData;
+        return [newService, ...oldData];
+      });
+
+      // 2. Update admin services list (admin: true)
+      queryClient.setQueryData<any[]>(['services', { admin: true }], (oldData) => {
+        if (!oldData) return oldData;
+        if (oldData.some(s => String(s.id) === String(newService.id))) return oldData;
+        return [newService, ...oldData];
+      });
+
       queryClient.invalidateQueries({ queryKey: ['services'] });
     };
 
-    const handleServiceUpdated = () => {
+    const handleServiceUpdated = (updatedService: any) => {
+      // 1. Update guest menu services list (admin: false)
+      queryClient.setQueryData<any[]>(['services', { admin: false }], (oldData) => {
+        if (!oldData) return oldData;
+        const isAvailable = updatedService.is_available === true || Number(updatedService.is_available) === 1;
+        if (!isAvailable) {
+          // Remove if made unavailable (hidden)
+          return oldData.filter(s => String(s.id) !== String(updatedService.id));
+        }
+        
+        const exists = oldData.some(s => String(s.id) === String(updatedService.id));
+        if (exists) {
+          return oldData.map(s => String(s.id) === String(updatedService.id) ? { ...s, ...updatedService } : s);
+        } else {
+          // Add if it was previously hidden and is now available
+          return [updatedService, ...oldData];
+        }
+      });
+
+      // 2. Update admin services list (admin: true)
+      queryClient.setQueryData<any[]>(['services', { admin: true }], (oldData) => {
+        if (!oldData) return oldData;
+        return oldData.map(s => String(s.id) === String(updatedService.id) ? { ...s, ...updatedService } : s);
+      });
+
       queryClient.invalidateQueries({ queryKey: ['services'] });
     };
 
-    const handleServiceDeleted = () => {
+    const handleServiceDeleted = (data: { id: number }) => {
+      const deletedId = data.id;
+
+      // 1. Update guest menu services list (admin: false)
+      queryClient.setQueryData<any[]>(['services', { admin: false }], (oldData) => {
+        if (!oldData) return oldData;
+        return oldData.filter(s => String(s.id) !== String(deletedId));
+      });
+
+      // 2. Update admin services list (admin: true)
+      queryClient.setQueryData<any[]>(['services', { admin: true }], (oldData) => {
+        if (!oldData) return oldData;
+        return oldData.filter(s => String(s.id) !== String(deletedId));
+      });
+
       queryClient.invalidateQueries({ queryKey: ['services'] });
     };
 
