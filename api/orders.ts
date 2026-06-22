@@ -3,6 +3,7 @@ import { getDb } from './_db.js';
 import { roomOrders, orderItems, services } from './_schema.js';
 import { eq, desc, or, inArray } from 'drizzle-orm';
 import { triggerPusherEvent } from './_pusher.js';
+import { checkRateLimitByRoomOrIp } from './_rate-limit.js';
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -119,25 +120,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(400).json({ error: 'Room number and items are required.' });
         }
 
+        // Rate limit: Max 8 order placements per 60 seconds per Room/IP address
+        const rate = await checkRateLimitByRoomOrIp(req, 'place-order', roomNumber, 8, 60);
+        if (!rate.success) {
+          return res.status(429).json({ error: 'Too many requests. Please wait before placing another order.' });
+        }
+
         let total_price = 0;
         for (const item of items) {
           total_price += item.price * item.quantity;
         }
 
-        const [insertResult] = await db.insert(roomOrders).values({
-          room_number: roomNumber,
-          total_price: String(total_price)
-        });
-        const orderId = insertResult.insertId;
-
-        for (const item of items) {
-          await db.insert(orderItems).values({
-            order_id: orderId,
-            service_id: item.id,
-            quantity: item.quantity,
-            price: String(item.price)
+        const orderId = await db.transaction(async (tx) => {
+          const [insertResult] = await tx.insert(roomOrders).values({
+            room_number: roomNumber,
+            total_price: String(total_price)
           });
-        }
+          const newOrderId = insertResult.insertId;
+
+          for (const item of items) {
+            await tx.insert(orderItems).values({
+              order_id: newOrderId,
+              service_id: item.id,
+              quantity: item.quantity,
+              price: String(item.price)
+            });
+          }
+          return newOrderId;
+        });
 
         // Fetch detailed order data with items joined to broadcast
         const joinedRows = await db.select({
@@ -205,10 +215,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         if (targetOrders.length > 0) {
           const ids = targetOrders.map((o: { id: number }) => o.id);
-          // Delete from orderItems first to avoid orphans
-          await db.delete(orderItems).where(inArray(orderItems.order_id, ids));
-          // Delete from roomOrders
-          await db.delete(roomOrders).where(inArray(roomOrders.id, ids));
+          await db.transaction(async (tx) => {
+            // Delete from orderItems first to avoid orphans
+            await tx.delete(orderItems).where(inArray(orderItems.order_id, ids));
+            // Delete from roomOrders
+            await tx.delete(roomOrders).where(inArray(roomOrders.id, ids));
+          });
         }
 
         // Broadcast to trigger refetches in real-time

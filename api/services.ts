@@ -26,8 +26,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isAdmin = req.query.admin === '1';
         let rows;
         if (isAdmin) {
+          // Admin queries bypass CDN cache to see instant updates
+          res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
           rows = await db.select().from(services).orderBy(desc(services.created_at));
         } else {
+          // Cache guest catalog reads on Vercel's CDN Edge (10s local, 60s CDN, 30s background revalidation)
+          res.setHeader('Cache-Control', 'public, max-age=10, s-maxage=60, stale-while-revalidate=30');
           rows = await db.select().from(services).where(eq(services.is_available, true)).orderBy(desc(services.created_at));
         }
         return res.json(rows);

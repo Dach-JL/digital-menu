@@ -1,16 +1,18 @@
-import { drizzle } from 'drizzle-orm/mysql2';
+import { drizzle, MySql2Database } from 'drizzle-orm/mysql2';
 import mysql from 'mysql2/promise';
 import * as schema from './_schema.js';
 
-let pool: any = null;
-let db: any = null;
+let pool: mysql.Pool | null = null;
+let db: MySql2Database<typeof schema> | null = null;
 
 export function getDb() {
   if (!pool) {
     pool = mysql.createPool({
       uri: process.env.DATABASE_URL,
       waitForConnections: true,
-      connectionLimit: 10,
+      connectionLimit: 2, // Low limit optimized for serverless scaling (prevent DB pool exhaustion)
+      maxIdle: 2, // Maximum idle connections to retain in pool
+      idleTimeout: 15000, // Close idle connections after 15s to release DB resources
       queueLimit: 0,
       ssl: {
         rejectUnauthorized: false

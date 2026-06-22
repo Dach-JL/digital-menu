@@ -3,6 +3,7 @@ import { getDb } from './_db.js';
 import { waiterCalls } from './_schema.js';
 import { eq, desc } from 'drizzle-orm';
 import { triggerPusherEvent } from './_pusher.js';
+import { checkRateLimitByRoomOrIp } from './_rate-limit.js';
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -30,6 +31,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'POST': {
         const { roomNumber } = req.body;
         if (!roomNumber) return res.status(400).json({ error: 'Room number is required.' });
+
+        // Rate limit: Max 5 waiter calls per 60 seconds per Room/IP address
+        const rate = await checkRateLimitByRoomOrIp(req, 'waiter-call', roomNumber, 5, 60);
+        if (!rate.success) {
+          return res.status(429).json({ error: 'Too many requests. Please wait before calling the waiter again.' });
+        }
+
         const [insertResult] = await db.insert(waiterCalls).values({
           room_number: roomNumber
         });
