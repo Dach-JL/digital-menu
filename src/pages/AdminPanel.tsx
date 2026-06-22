@@ -1849,11 +1849,13 @@ const AdminPanel = () => {
       <aside className={`hidden md:flex flex-col border-r border-border bg-card min-h-screen sticky top-0 shrink-0 select-none transition-all duration-300 ${
         isSidebarCollapsed ? 'w-20 p-3' : 'w-64 lg:w-72 p-6'
       }`}>
-        <div className="flex items-center justify-between mb-8 px-2">
+        <div className={`flex mb-8 px-2 transition-all duration-300 ${
+          isSidebarCollapsed ? 'flex-col items-center gap-4 w-full justify-center' : 'items-center justify-between w-full'
+        }`}>
           {!isSidebarCollapsed && (
             <div className="flex items-center gap-2 animate-in fade-in duration-300">
-              <div className="w-8 h-8 rounded-lg bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center">
-                <Utensils className="h-4.5 w-4.5 text-background" />
+              <div className="w-8 h-8 rounded-lg overflow-hidden border bg-background flex items-center justify-center shrink-0">
+                <img src="/royal-hotel--logo.jpg" alt="Royal Hotel Logo" className="w-full h-full object-cover" />
               </div>
               <div>
                 <h1 className="font-bold text-base leading-none text-foreground tracking-tight">Royal Home</h1>
@@ -1862,13 +1864,13 @@ const AdminPanel = () => {
             </div>
           )}
           {isSidebarCollapsed && (
-            <div className="w-8 h-8 rounded-lg bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center mx-auto animate-in fade-in duration-300">
-              <Utensils className="h-4.5 w-4.5 text-background" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden border bg-background flex items-center justify-center mx-auto animate-in fade-in duration-300 shrink-0">
+              <img src="/royal-hotel--logo.jpg" alt="Royal Hotel Logo" className="w-full h-full object-cover" />
             </div>
           )}
           <button
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className={`p-1.5 rounded-lg hover:bg-muted border border-transparent hover:border-border transition-all active:scale-95 ${isSidebarCollapsed ? 'mx-auto mt-2' : 'ml-auto'}`}
+            className={`p-1.5 rounded-lg hover:bg-muted border border-transparent hover:border-border transition-all active:scale-95 ${isSidebarCollapsed ? 'mx-auto' : 'ml-auto'}`}
             title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
