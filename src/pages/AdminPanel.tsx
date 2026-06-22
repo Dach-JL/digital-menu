@@ -1858,7 +1858,7 @@ const AdminPanel = () => {
                 <img src="/royal-hotel--logo.jpg" alt="Royal Hotel Logo" className="w-full h-full object-cover" />
               </div>
               <div>
-                <h1 className="font-bold text-base leading-none text-foreground tracking-tight">Royal Home</h1>
+                <h1 className="font-bold text-base leading-none text-foreground tracking-tight">Royal Hotel</h1>
                 <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Admin Portal</span>
               </div>
             </div>
