@@ -82,88 +82,101 @@ const Feedback = () => {
   const ratingLabels = ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'];
 
   return (
-    <div className="bg-background flex max-w-[480px] w-full flex-col overflow-hidden mx-auto min-h-screen pb-28">
-      <main className="flex flex-col w-full flex-1 px-5 pt-14">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-full bg-golden/15 flex items-center justify-center mx-auto mb-4">
-            <MessageCircle className="w-8 h-8 text-golden" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground mb-1">{t('feedback.title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('feedback.description')}</p>
-        </div>
-
-        {/* Form sections */}
-        <div className="space-y-5">
-          {/* Category selector */}
-          <div className="bg-card rounded-2xl border border-border/50 p-4">
-            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Category</label>
-            <Select value={selectedCategoryId ?? ''} onValueChange={setSelectedCategoryId}>
-              <SelectTrigger className="rounded-xl border-border bg-background">
-                <SelectValue placeholder="Select a category" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                <SelectItem value="general">{t('feedback.general_feedback')}</SelectItem>
-                <SelectSeparator />
-                {feedbackCategories.map(category => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Star rating */}
-          <div className="bg-card rounded-2xl border border-border/50 p-4">
-            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t('feedback.rating_label')}</label>
-            <div className="flex flex-col items-center gap-2">
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    onClick={() => handleStarClick(star)}
-                    onMouseEnter={() => setHoveredRating(star)}
-                    onMouseLeave={() => setHoveredRating(0)}
-                    className="transition-all duration-200 hover:scale-110 active:scale-95"
-                  >
-                    <Star
-                      className={`h-9 w-9 transition-colors duration-200 ${
-                        star <= (hoveredRating || rating)
-                          ? 'fill-amber-400 text-amber-400'
-                          : 'text-border'
-                      }`}
-                    />
-                  </button>
-                ))}
+    <div className="bg-background flex max-w-[480px] md:max-w-full w-full flex-col overflow-hidden mx-auto min-h-screen pb-28">
+      <main className="flex flex-col w-full flex-1 px-5 md:px-8 lg:px-12 xl:px-16 pt-14">
+        {/* Two-column layout on larger viewports */}
+        <div className="md:grid md:grid-cols-2 md:gap-8 md:items-start md:mt-6">
+          
+          {/* Left Column: Decorative Header */}
+          <div className="text-center md:text-left md:sticky md:top-24 mb-8 md:mb-0 md:pr-4">
+            <div className="w-16 h-16 rounded-full bg-golden/15 flex items-center justify-center mx-auto md:mx-0 mb-4">
+              <MessageCircle className="w-8 h-8 text-golden" />
+            </div>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2 md:mb-3">{t('feedback.title')}</h1>
+            <p className="text-sm text-muted-foreground leading-relaxed">{t('feedback.description')}</p>
+            
+            <div className="hidden md:block mt-6 p-5 rounded-2xl bg-muted/40 border border-border/50 text-xs text-muted-foreground font-medium leading-relaxed">
+              <div className="flex items-center gap-2 mb-2">
+                <Info className="w-4 h-4 text-golden" strokeWidth={2.5} />
+                <span className="font-bold text-[10px] uppercase tracking-wider text-foreground">Why Feedback Matters</span>
               </div>
-              {rating > 0 && (
-                <span className="text-xs font-medium text-golden mt-1 animate-in fade-in duration-200">
-                  {ratingLabels[rating]}
-                </span>
-              )}
+              Your experience helps us continuously elevate our services. Every review is directly shared with management to ensure a premium hotel stay.
             </div>
           </div>
 
-          {/* Comment */}
-          <div className="bg-card rounded-2xl border border-border/50 p-4">
-            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">{t('feedback.comment_label')}</label>
-            <Textarea
-              placeholder={t('feedback.comment_placeholder')}
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              className="min-h-[120px] resize-none rounded-xl border-border bg-background"
-            />
+          {/* Right Column: Form sections */}
+          <div className="space-y-5">
+            {/* Category selector */}
+            <div className="bg-card rounded-2xl border border-border/50 p-4">
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Category</label>
+              <Select value={selectedCategoryId ?? ''} onValueChange={setSelectedCategoryId}>
+                <SelectTrigger className="rounded-xl border-border bg-background">
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="general">{t('feedback.general_feedback')}</SelectItem>
+                  <SelectSeparator />
+                  {feedbackCategories.map(category => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Star rating */}
+            <div className="bg-card rounded-2xl border border-border/50 p-4">
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t('feedback.rating_label')}</label>
+              <div className="flex flex-col items-center gap-2">
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => handleStarClick(star)}
+                      onMouseEnter={() => setHoveredRating(star)}
+                      onMouseLeave={() => setHoveredRating(0)}
+                      className="transition-all duration-200 hover:scale-110 active:scale-95"
+                    >
+                      <Star
+                        className={`h-9 w-9 transition-colors duration-200 ${
+                          star <= (hoveredRating || rating)
+                            ? 'fill-amber-400 text-amber-400'
+                            : 'text-border'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+                {rating > 0 && (
+                  <span className="text-xs font-medium text-golden mt-1 animate-in fade-in duration-200">
+                    {ratingLabels[rating]}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Comment */}
+            <div className="bg-card rounded-2xl border border-border/50 p-4">
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">{t('feedback.comment_label')}</label>
+              <Textarea
+                placeholder={t('feedback.comment_placeholder')}
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                className="min-h-[120px] resize-none rounded-xl border-border bg-background"
+              />
+            </div>
+
+            {/* Submit */}
+            <Button
+              onClick={handleSubmit}
+              className="w-full h-12 rounded-2xl text-sm font-semibold bg-foreground hover:bg-foreground/90 text-background shadow-lg transition-all duration-200 hover:shadow-xl"
+              disabled={!selectedCategoryId || rating === 0 || !comment.trim()}
+            >
+              {t('feedback.submit_button')}
+            </Button>
           </div>
 
-          {/* Submit */}
-          <Button
-            onClick={handleSubmit}
-            className="w-full h-12 rounded-2xl text-sm font-semibold bg-foreground hover:bg-foreground/90 text-background shadow-lg transition-all duration-200 hover:shadow-xl"
-            disabled={!selectedCategoryId || rating === 0 || !comment.trim()}
-          >
-            {t('feedback.submit_button')}
-          </Button>
         </div>
       </main>
 

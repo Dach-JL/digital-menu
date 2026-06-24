@@ -39,9 +39,9 @@ const OrderStatus = () => {
   };
 
   return (
-    <div className="bg-background flex max-w-[480px] w-full flex-col overflow-hidden mx-auto min-h-screen pb-28 page-transition">
-      <header className="fixed top-0 max-w-[480px] w-full bg-background/80 backdrop-blur-md z-40 border-b border-border/40">
-        <div className="flex items-center justify-between px-5 h-14">
+    <div className="bg-background flex max-w-[480px] md:max-w-full w-full flex-col overflow-hidden mx-auto min-h-screen pb-28 page-transition">
+      <header className="fixed top-0 left-0 right-0 bg-background/80 backdrop-blur-md z-40 border-b border-border/40">
+        <div className="flex items-center justify-between px-5 h-14 max-w-[480px] md:max-w-full mx-auto">
           <button onClick={() => navigate('/')} className="p-1 -ml-1 rounded-full hover:bg-accent transition-colors">
             <ArrowLeft className="w-6 h-6 text-foreground" />
           </button>
@@ -56,7 +56,7 @@ const OrderStatus = () => {
         </div>
       </header>
 
-      <main className="flex flex-col w-full flex-1 px-5 pt-20">
+      <main className="flex flex-col w-full flex-1 px-5 md:px-8 lg:px-12 xl:px-16 pt-20">
         {/* Room Header */}
         <div className="bg-muted/30 border border-border/40 p-4 rounded-2xl mb-6 flex justify-between items-center">
           <div>
@@ -90,107 +90,109 @@ const OrderStatus = () => {
             {activeOrders.length > 0 && (
               <div className="space-y-4">
                 <h3 className="font-extrabold text-sm text-muted-foreground uppercase tracking-wider pl-1">Active Orders</h3>
-                {activeOrders.map((order) => {
-                  const currentStep = getStepIndex(order.status);
-                  
-                  return (
-                    <Card key={order.id} className="border-border/60 shadow-sm overflow-hidden">
-                      <CardHeader className="pb-3 border-b border-border/40 bg-muted/10">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle className="text-sm font-extrabold">Order #{order.id}</CardTitle>
-                            <span className="text-[10px] text-muted-foreground">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="font-bold text-sm text-primary">{Number(order.total_price).toLocaleString()} ETB</span>
-                            <p className="text-[10px] text-muted-foreground">{order.items.length} items</p>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="py-5 space-y-6">
-                        {/* Status tracker visual */}
-                        <div className="relative flex justify-between items-center w-full px-2">
-                          {/* Progress Line */}
-                          <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-muted -translate-y-1/2 z-0" />
-                          <div 
-                            className="absolute top-1/2 left-0 h-0.5 bg-primary -translate-y-1/2 z-0 transition-all duration-700" 
-                            style={{ width: `${((currentStep - 1) / 3) * 100}%` }}
-                          />
-
-                          {/* Step 1: Placed */}
-                          <div className="flex flex-col items-center z-10">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                              currentStep >= 1 ? 'bg-primary text-primary-foreground scale-110 shadow-sm' : 'bg-muted text-muted-foreground'
-                            }`}>
-                              <Clock className="w-4 h-4" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {activeOrders.map((order) => {
+                    const currentStep = getStepIndex(order.status);
+                    
+                    return (
+                      <Card key={order.id} className="border-border/60 shadow-sm overflow-hidden">
+                        <CardHeader className="pb-3 border-b border-border/40 bg-muted/10">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle className="text-sm font-extrabold">Order #{order.id}</CardTitle>
+                              <span className="text-[10px] text-muted-foreground">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
-                            <span className="text-[9px] font-bold mt-1 text-center">Placed</span>
+                            <div className="text-right">
+                              <span className="font-bold text-sm text-primary">{Number(order.total_price).toLocaleString()} ETB</span>
+                              <p className="text-[10px] text-muted-foreground">{order.items.length} items</p>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="py-5 space-y-6">
+                          {/* Status tracker visual */}
+                          <div className="relative flex justify-between items-center w-full px-2">
+                            {/* Progress Line */}
+                            <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-muted -translate-y-1/2 z-0" />
+                            <div 
+                              className="absolute top-1/2 left-0 h-0.5 bg-primary -translate-y-1/2 z-0 transition-all duration-700" 
+                              style={{ width: `${((currentStep - 1) / 3) * 100}%` }}
+                            />
+
+                            {/* Step 1: Placed */}
+                            <div className="flex flex-col items-center z-10">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                                currentStep >= 1 ? 'bg-primary text-primary-foreground scale-110 shadow-sm' : 'bg-muted text-muted-foreground'
+                              }`}>
+                                <Clock className="w-4 h-4" />
+                              </div>
+                              <span className="text-[9px] font-bold mt-1 text-center">Placed</span>
+                            </div>
+
+                            {/* Step 2: Preparing */}
+                            <div className="flex flex-col items-center z-10">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                                currentStep >= 2 ? 'bg-primary text-primary-foreground scale-110 shadow-sm' : 'bg-muted text-muted-foreground'
+                              }`}>
+                                <Utensils className="w-4 h-4" />
+                              </div>
+                              <span className="text-[9px] font-bold mt-1 text-center">Kitchen</span>
+                            </div>
+
+                            {/* Step 3: On the Way */}
+                            <div className="flex flex-col items-center z-10">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                                currentStep >= 3 ? 'bg-primary text-primary-foreground scale-110 shadow-sm' : 'bg-muted text-muted-foreground'
+                              }`}>
+                                <Truck className="w-4 h-4" />
+                              </div>
+                              <span className="text-[9px] font-bold mt-1 text-center">Delivery</span>
+                            </div>
+
+                            {/* Step 4: Completed */}
+                            <div className="flex flex-col items-center z-10">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                                currentStep >= 4 ? 'bg-primary text-primary-foreground scale-110 shadow-sm' : 'bg-muted text-muted-foreground'
+                              }`}>
+                                <CheckCircle2 className="w-4 h-4" />
+                              </div>
+                              <span className="text-[9px] font-bold mt-1 text-center">Served</span>
+                            </div>
                           </div>
 
-                          {/* Step 2: Preparing */}
-                          <div className="flex flex-col items-center z-10">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                              currentStep >= 2 ? 'bg-primary text-primary-foreground scale-110 shadow-sm' : 'bg-muted text-muted-foreground'
-                            }`}>
-                              <Utensils className="w-4 h-4" />
-                            </div>
-                            <span className="text-[9px] font-bold mt-1 text-center">Kitchen</span>
+                          {/* Status Label Description */}
+                          <div className="bg-accent/40 rounded-xl p-3 text-xs text-center border border-border/30">
+                            {order.status === 'pending' && (
+                              <p className="text-amber-600 dark:text-amber-400 font-medium">
+                                We have received your order. Standard preparation time is 15-25 minutes.
+                              </p>
+                            )}
+                            {order.status === 'preparing' && (
+                              <p className="text-blue-600 dark:text-blue-400 font-medium animate-pulse">
+                                Our chefs are preparing your delicious meal in the kitchen!
+                              </p>
+                            )}
+                            {order.status === 'on_the_way' && (
+                              <p className="text-indigo-600 dark:text-indigo-400 font-medium animate-pulse">
+                                Your order is ready and on the way to Room/Table {roomNumber}!
+                              </p>
+                            )}
                           </div>
 
-                          {/* Step 3: On the Way */}
-                          <div className="flex flex-col items-center z-10">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                              currentStep >= 3 ? 'bg-primary text-primary-foreground scale-110 shadow-sm' : 'bg-muted text-muted-foreground'
-                            }`}>
-                              <Truck className="w-4 h-4" />
-                            </div>
-                            <span className="text-[9px] font-bold mt-1 text-center">Delivery</span>
+                          {/* Items summary */}
+                          <div className="space-y-2 border-t pt-4 border-border/40">
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Order Items</p>
+                            {order.items.map((item, idx) => (
+                              <div key={idx} className="flex justify-between text-xs py-1">
+                                <span>{item.quantity}x {item.name_en}</span>
+                                <span className="text-muted-foreground">{(item.price * item.quantity).toLocaleString()} ETB</span>
+                              </div>
+                            ))}
                           </div>
-
-                          {/* Step 4: Completed */}
-                          <div className="flex flex-col items-center z-10">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                              currentStep >= 4 ? 'bg-primary text-primary-foreground scale-110 shadow-sm' : 'bg-muted text-muted-foreground'
-                            }`}>
-                              <CheckCircle2 className="w-4 h-4" />
-                            </div>
-                            <span className="text-[9px] font-bold mt-1 text-center">Served</span>
-                          </div>
-                        </div>
-
-                        {/* Status Label Description */}
-                        <div className="bg-accent/40 rounded-xl p-3 text-xs text-center border border-border/30">
-                          {order.status === 'pending' && (
-                            <p className="text-amber-600 dark:text-amber-400 font-medium">
-                              We have received your order. Standard preparation time is 15-25 minutes.
-                            </p>
-                          )}
-                          {order.status === 'preparing' && (
-                            <p className="text-blue-600 dark:text-blue-400 font-medium animate-pulse">
-                              Our chefs are preparing your delicious meal in the kitchen!
-                            </p>
-                          )}
-                          {order.status === 'on_the_way' && (
-                            <p className="text-indigo-600 dark:text-indigo-400 font-medium animate-pulse">
-                              Your order is ready and on the way to Room/Table {roomNumber}!
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Items summary */}
-                        <div className="space-y-2 border-t pt-4 border-border/40">
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Order Items</p>
-                          {order.items.map((item, idx) => (
-                            <div key={idx} className="flex justify-between text-xs py-1">
-                              <span>{item.quantity}x {item.name_en}</span>
-                              <span className="text-muted-foreground">{(item.price * item.quantity).toLocaleString()} ETB</span>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
               </div>
             )}
 

@@ -22,10 +22,10 @@ const LanguageSettings = () => {
     };
 
     return (
-        <div className="bg-background flex max-w-[480px] w-full flex-col overflow-hidden items-center mx-auto min-h-screen relative pb-24 page-transition">
+        <div className="bg-background flex max-w-[480px] md:max-w-full w-full flex-col overflow-hidden items-center mx-auto min-h-screen relative pb-24 page-transition">
             <Header />
 
-            <main className="flex flex-col w-full px-6 py-6 pt-2">
+            <main className="flex flex-col w-full px-6 md:px-12 lg:px-20 xl:px-28 py-6 pt-2">
                 <div className="flex items-center gap-4 mb-10">
                     <button
                         onClick={() => navigate('/profile')}

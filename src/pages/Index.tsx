@@ -50,13 +50,13 @@ const Index = () => {
   };
 
   return (
-    <div className="bg-background text-foreground flex max-w-[480px] w-full flex-col overflow-x-hidden mx-auto min-h-screen pb-28">
+    <div className="bg-background text-foreground flex max-w-[480px] md:max-w-full w-full flex-col overflow-x-hidden mx-auto min-h-screen pb-28">
       <div className="relative w-full">
         <RoomBadge />
         <HeroSection />
       </div>
 
-      <main className="flex flex-col w-full flex-1 px-5 relative z-10 bg-background rounded-t-[32px] -mt-[40px] pt-6 shadow-[0_-8px_30px_rgba(0,0,0,0.05)]">
+      <main className="flex flex-col w-full flex-1 px-5 md:px-8 lg:px-12 xl:px-16 relative z-10 bg-background rounded-t-[32px] -mt-[40px] pt-6 shadow-[0_-8px_30px_rgba(0,0,0,0.05)]">
         <SearchBar onSearch={setSearchQuery} onFilterClick={() => setIsFilterOpen(true)} />
         <CategoryTabs onCategoryChange={setActiveCategory} />
         <ProductList

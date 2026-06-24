@@ -35,8 +35,8 @@ const Favorites = () => {
 
   if (!user) {
     return (
-      <div className="bg-background flex max-w-[480px] w-full flex-col overflow-hidden mx-auto min-h-screen pb-28">
-        <main className="flex flex-col w-full flex-1 px-5 pt-14 items-center justify-center">
+      <div className="bg-background flex max-w-[480px] md:max-w-full w-full flex-col overflow-hidden mx-auto min-h-screen pb-28">
+        <main className="flex flex-col w-full flex-1 px-5 md:px-8 lg:px-12 xl:px-16 pt-14 items-center justify-center">
           <Heart className="w-16 h-16 text-muted-foreground mb-4" />
           <p className="text-center text-muted-foreground">{t('favorites.login_prompt')}</p>
         </main>
@@ -46,13 +46,26 @@ const Favorites = () => {
   }
 
   return (
-    <div className="bg-background flex max-w-[480px] w-full flex-col overflow-hidden mx-auto min-h-screen pb-28 page-transition">
-      <main className="flex flex-col w-full flex-1 px-5 pt-14">
+    <div className="bg-background flex max-w-[480px] md:max-w-full w-full flex-col overflow-hidden mx-auto min-h-screen pb-28 page-transition">
+      <main className="flex flex-col w-full flex-1 px-5 md:px-8 lg:px-12 xl:px-16 pt-14">
         <h1 className="text-2xl font-bold text-foreground mb-5">Favorite</h1>
         {isLoading && <p className="text-center text-muted-foreground">{t('messages.loading')}</p>}
         {!isLoading && favoriteProducts.length > 0 && (
-          <div className="grid grid-cols-2 gap-3 items-start mt-3">
-             <div className="flex flex-col gap-3">
+          <div className="mt-3">
+            {/* Desktop / Tablet responsive grid */}
+            <div className="hidden md:grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+              {favoriteProducts.map((product, i) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  index={i}
+                />
+              ))}
+            </div>
+
+            {/* Mobile staggered layout */}
+            <div className="grid md:hidden grid-cols-2 gap-3 items-start">
+              <div className="flex flex-col gap-3">
                 {favoriteProducts.filter((_, i) => i % 2 === 0).map((product, i) => (
                   <ProductCard
                     key={product.id}
@@ -60,8 +73,8 @@ const Favorites = () => {
                     index={i * 2}
                   />
                 ))}
-            </div>
-             <div className="flex flex-col gap-3">
+              </div>
+              <div className="flex flex-col gap-3">
                 {favoriteProducts.filter((_, i) => i % 2 === 1).map((product, i) => (
                   <ProductCard
                     key={product.id}
@@ -69,6 +82,7 @@ const Favorites = () => {
                     index={i * 2 + 1}
                   />
                 ))}
+              </div>
             </div>
           </div>
         )}

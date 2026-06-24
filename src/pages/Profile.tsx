@@ -237,220 +237,238 @@ const Profile = () => {
   };
 
   return (
-    <div className="bg-background flex max-w-[480px] w-full flex-col overflow-hidden mx-auto min-h-screen pb-28">
-      <main className="flex flex-col w-full flex-1 px-5 pt-14">
+    <div className="bg-background flex max-w-[480px] md:max-w-full w-full flex-col overflow-hidden mx-auto min-h-screen pb-28">
+      <main className="flex flex-col w-full flex-1 px-5 md:px-8 lg:px-12 xl:px-16 pt-14">
         {/* Page title */}
         <h1 className="text-2xl font-bold text-foreground mb-6">Profile</h1>
 
-        {/* User card */}
-        <div className="bg-card rounded-2xl p-4 flex items-center gap-4 border border-border/50 mb-6">
-          {user ? (
-            <>
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0"
-                style={{ background: '#2d6a4f' }}
-              >
-                {user.username.charAt(0).toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-foreground truncate">{user.username}</p>
-                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                {isAnyAdmin() && (
-                  <span className={`mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${ROLE_COLORS[user.role] || 'bg-golden/20 text-golden'}`}>
-                    {ROLE_ICONS[user.role]}
-                    {getUserRoleLabel()}
-                  </span>
-                )}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSignOut}
-                className="shrink-0 text-xs rounded-full border-border"
-              >
-                <LogOut className="h-3.5 w-3.5 mr-1" />
-                Sign Out
-              </Button>
-            </>
-          ) : (
-            <>
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0"
-                style={{ background: '#2d6a4f' }}
-              >
-                G
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-foreground">Guest</p>
-                <p className="text-xs text-muted-foreground">Become Our customer by creating account</p>
-              </div>
-              <Dialog open={isAuthDialogOpen} onOpenChange={handleOpenChange}>
-                <DialogTrigger asChild>
-                  <Button
-                    size="sm"
-                    className="shrink-0 text-xs rounded-full bg-foreground text-background hover:bg-foreground/90"
-                    onClick={() => setIsAuthDialogOpen(true)}
+        {/* Responsive layout container */}
+        <div className="md:grid md:grid-cols-2 md:gap-8 md:items-start">
+          
+          {/* Left Column: User Card & Welcome Block */}
+          <div className="mb-6 md:mb-0 md:sticky md:top-24">
+            {/* User card */}
+            <div className="bg-card rounded-2xl p-4 flex items-center gap-4 border border-border/50">
+              {user ? (
+                <>
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0"
+                    style={{ background: '#2d6a4f' }}
                   >
-                    Sign in/Register
+                    {user.username.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-foreground truncate">{user.username}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    {isAnyAdmin() && (
+                      <span className={`mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${ROLE_COLORS[user.role] || 'bg-golden/20 text-golden'}`}>
+                        {ROLE_ICONS[user.role]}
+                        {getUserRoleLabel()}
+                      </span>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSignOut}
+                    className="shrink-0 text-xs rounded-full border-border"
+                  >
+                    <LogOut className="h-3.5 w-3.5 mr-1" />
+                    Sign Out
                   </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px] rounded-2xl">
-                  <DialogHeader>
-                    <DialogTitle>{authMode === 'login' ? t('settings.dialog.login_title') : t('settings.dialog.register_title')}</DialogTitle>
-                    <DialogDescription>
-                      {authMode === 'login' ? t('settings.dialog.login_description') : t('settings.dialog.register_description')}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleSubmit}>
-                    <div className="grid gap-4 py-4">
-                      {authMode === 'register' && (
-                        <Input
-                          id="username"
-                          type="text"
-                          placeholder={t('settings.dialog.username_placeholder')}
-                          value={username}
-                          onChange={(e) => setUsername(e.target.value)}
-                          required
-                          className="rounded-xl"
-                        />
-                      )}
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder={t('settings.dialog.email_placeholder')}
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        className="rounded-xl"
-                      />
-                      <Input
-                        id="password"
-                        type="password"
-                        placeholder={t('settings.dialog.password_placeholder')}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        className="rounded-xl"
-                      />
-                    </div>
-                    <DialogFooter className="flex-col gap-2">
-                      <Button type="submit" className="w-full rounded-xl">{authMode === 'login' ? t('settings.dialog.login_title') : t('settings.dialog.register_button')}</Button>
-                      <Button type="button" variant="link" size="sm" onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}>
-                        {authMode === 'login' ? t('settings.dialog.login_switch') : t('settings.dialog.register_switch')}
+                </>
+              ) : (
+                <>
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0"
+                    style={{ background: '#2d6a4f' }}
+                  >
+                    G
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-foreground">Guest</p>
+                    <p className="text-xs text-muted-foreground">Become Our customer by creating account</p>
+                  </div>
+                  <Dialog open={isAuthDialogOpen} onOpenChange={handleOpenChange}>
+                    <DialogTrigger asChild>
+                      <Button
+                        size="sm"
+                        className="shrink-0 text-xs rounded-full bg-foreground text-background hover:bg-foreground/90"
+                        onClick={() => setIsAuthDialogOpen(true)}
+                      >
+                        Sign in/Register
                       </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </>
-          )}
-        </div>
-
-        {/* Preferences section */}
-        <h2 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Preferences</h2>
-        <div className="bg-card rounded-2xl border border-border/50 overflow-hidden mb-5">
-          {/* Dark Mode toggle */}
-          <div className="flex items-center gap-4 px-4 py-3.5">
-            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-              <Moon className="h-4 w-4 text-foreground" />
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px] rounded-2xl">
+                      <DialogHeader>
+                        <DialogTitle>{authMode === 'login' ? t('settings.dialog.login_title') : t('settings.dialog.register_title')}</DialogTitle>
+                        <DialogDescription>
+                          {authMode === 'login' ? t('settings.dialog.login_description') : t('settings.dialog.register_description')}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <form onSubmit={handleSubmit}>
+                        <div className="grid gap-4 py-4">
+                          {authMode === 'register' && (
+                            <Input
+                              id="username"
+                              type="text"
+                              placeholder={t('settings.dialog.username_placeholder')}
+                              value={username}
+                              onChange={(e) => setUsername(e.target.value)}
+                              required
+                              className="rounded-xl"
+                            />
+                          )}
+                          <Input
+                            id="email"
+                            type="email"
+                            placeholder={t('settings.dialog.email_placeholder')}
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            className="rounded-xl"
+                          />
+                          <Input
+                            id="password"
+                            type="password"
+                            placeholder={t('settings.dialog.password_placeholder')}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            className="rounded-xl"
+                          />
+                        </div>
+                        <DialogFooter className="flex-col gap-2">
+                          <Button type="submit" className="w-full rounded-xl">{authMode === 'login' ? t('settings.dialog.login_title') : t('settings.dialog.register_button')}</Button>
+                          <Button type="button" variant="link" size="sm" onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}>
+                            {authMode === 'login' ? t('settings.dialog.login_switch') : t('settings.dialog.register_switch')}
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                </>
+              )}
             </div>
-            <span className="flex-1 text-sm font-medium text-foreground">Dark Mode</span>
-            <button
-              onClick={toggleTheme}
-              className={`ios-toggle ${theme === 'dark' ? 'active' : ''}`}
-              aria-label="Toggle dark mode"
-            />
+
+            {/* Desktop-only welcome info card */}
+            <div className="hidden md:block mt-6 p-5 rounded-2xl bg-muted/40 border border-border/50 text-xs text-muted-foreground font-medium leading-relaxed">
+              <div className="flex items-center gap-2 mb-2.5">
+                <SettingsIcon className="w-4 h-4 text-primary" />
+                <span className="font-bold text-[10px] uppercase tracking-wider text-foreground">Royal Premium Settings</span>
+              </div>
+              Manage your language choices, base currency conversions, and read about our history. Administrators can also access the order management panel and manage user roles.
+            </div>
           </div>
 
-          <div className="h-px bg-border mx-4" />
-
-          {/* Language */}
-          <button 
-            onClick={() => navigate('/settings/language')}
-            className="flex items-center gap-4 px-4 py-3.5 w-full hover:bg-accent/50 transition-colors"
-          >
-            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-              <Globe className="h-4 w-4 text-foreground" />
-            </div>
-            <span className="flex-1 text-sm font-medium text-foreground text-left">Language</span>
-            <div className="flex items-center gap-2">
-               <span className="text-[10px] font-bold text-muted-foreground uppercase">{i18n.language}</span>
-               <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </button>
-
-          <div className="h-px bg-border mx-4" />
-
-          {/* Currency */}
-          <button 
-            onClick={() => navigate('/settings/currency')}
-            className="flex items-center gap-4 px-4 py-3.5 w-full hover:bg-accent/50 transition-colors"
-          >
-            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-              <DollarSign className="h-4 w-4 text-foreground" />
-            </div>
-            <span className="flex-1 text-sm font-medium text-foreground text-left">Currency</span>
-            <div className="flex items-center gap-2">
-               <span className="text-[10px] font-bold text-muted-foreground uppercase">{currency}</span>
-               <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </button>
-        </div>
-
-        <div className="bg-card rounded-2xl border border-border/50 overflow-hidden mb-5">
-          <button 
-            onClick={() => navigate('/settings/about')}
-            className="flex items-center gap-4 px-4 py-3.5 w-full hover:bg-accent/50 transition-colors"
-          >
-            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-              <Info className="h-4 w-4 text-foreground" />
-            </div>
-            <span className="flex-1 text-sm font-medium text-foreground text-left">About Us</span>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          </button>
-        </div>
-
-        {/* Admin Panel (for any admin role) */}
-        {isAnyAdmin() && (
-          <div className="mb-5 scale-in">
-            <h2 className="text-[10px] font-bold text-muted-foreground mb-2 uppercase tracking-widest px-1">Administrative</h2>
-            
-            {/* Admin Panel Link */}
-            <div 
-              className="group flex items-center justify-between bg-card p-3.5 rounded-2xl border border-golden/20 cursor-pointer hover:bg-golden/5 transition-all active:scale-[0.98] shadow-sm mb-3"
-              onClick={handleAdminPanelClick}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-golden/10 flex items-center justify-center text-golden group-hover:scale-110 transition-transform">
-                  <SettingsIcon className="h-4 w-4" />
+          {/* Right Column: Settings & Preferences */}
+          <div>
+            {/* Preferences section */}
+            <h2 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider pl-1">Preferences</h2>
+            <div className="bg-card rounded-2xl border border-border/50 overflow-hidden mb-5">
+              {/* Dark Mode toggle */}
+              <div className="flex items-center gap-4 px-4 py-3.5">
+                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                  <Moon className="h-4 w-4 text-foreground" />
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-foreground">Admin Panel</h3>
-                  <p className="text-[10px] text-muted-foreground">Manage products & orders</p>
-                </div>
+                <span className="flex-1 text-sm font-medium text-foreground">Dark Mode</span>
+                <button
+                  onClick={toggleTheme}
+                  className={`ios-toggle ${theme === 'dark' ? 'active' : ''}`}
+                  aria-label="Toggle dark mode"
+                />
               </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:translate-x-1 transition-transform" />
+
+              <div className="h-px bg-border mx-4" />
+
+              {/* Language */}
+              <button 
+                onClick={() => navigate('/settings/language')}
+                className="flex items-center gap-4 px-4 py-3.5 w-full hover:bg-accent/50 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                  <Globe className="h-4 w-4 text-foreground" />
+                </div>
+                <span className="flex-1 text-sm font-medium text-foreground text-left">Language</span>
+                <div className="flex items-center gap-2">
+                   <span className="text-[10px] font-bold text-muted-foreground uppercase">{i18n.language}</span>
+                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </button>
+
+              <div className="h-px bg-border mx-4" />
+
+              {/* Currency */}
+              <button 
+                onClick={() => navigate('/settings/currency')}
+                className="flex items-center gap-4 px-4 py-3.5 w-full hover:bg-accent/50 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                  <DollarSign className="h-4 w-4 text-foreground" />
+                </div>
+                <span className="flex-1 text-sm font-medium text-foreground text-left">Currency</span>
+                <div className="flex items-center gap-2">
+                   <span className="text-[10px] font-bold text-muted-foreground uppercase">{currency}</span>
+                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </button>
             </div>
 
-            {/* Manage Admins — Only for General Admin */}
-            {user?.role === 'admin' && (
-              <Dialog open={isAdminDialogOpen} onOpenChange={setIsAdminDialogOpen}>
-                <DialogTrigger asChild>
-                  <div 
-                    className="group flex items-center justify-between bg-card p-3.5 rounded-2xl border border-blue-500/20 cursor-pointer hover:bg-blue-500/5 transition-all active:scale-[0.98] shadow-sm"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
-                        <Users className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-foreground">Manage Admins</h3>
-                        <p className="text-[10px] text-muted-foreground">Add or remove admin accounts</p>
-                      </div>
+            {/* About us Section */}
+            <div className="bg-card rounded-2xl border border-border/50 overflow-hidden mb-5">
+              <button 
+                onClick={() => navigate('/settings/about')}
+                className="flex items-center gap-4 px-4 py-3.5 w-full hover:bg-accent/50 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                  <Info className="h-4 w-4 text-foreground" />
+                </div>
+                <span className="flex-1 text-sm font-medium text-foreground text-left">About Us</span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </div>
+
+            {/* Admin Panel (for any admin role) */}
+            {isAnyAdmin() && (
+              <div className="mb-5 scale-in animate-in fade-in duration-300">
+                <h2 className="text-[10px] font-bold text-muted-foreground mb-2.5 uppercase tracking-widest px-1">Administrative</h2>
+                
+                {/* Admin Panel Link */}
+                <div 
+                  className="group flex items-center justify-between bg-card p-3.5 rounded-2xl border border-golden/20 cursor-pointer hover:bg-golden/5 transition-all active:scale-[0.98] shadow-sm mb-3"
+                  onClick={handleAdminPanelClick}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-golden/10 flex items-center justify-center text-golden group-hover:scale-110 transition-transform">
+                      <SettingsIcon className="h-4 w-4" />
                     </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:translate-x-1 transition-transform" />
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground">Admin Panel</h3>
+                      <p className="text-[10px] text-muted-foreground">Manage products & orders</p>
+                    </div>
                   </div>
-                </DialogTrigger>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:translate-x-1 transition-transform" />
+                </div>
+
+                {/* Manage Admins — Only for General Admin */}
+                {user?.role === 'admin' && (
+                  <Dialog open={isAdminDialogOpen} onOpenChange={setIsAdminDialogOpen}>
+                    <DialogTrigger asChild>
+                      <div 
+                        className="group flex items-center justify-between bg-card p-3.5 rounded-2xl border border-blue-500/20 cursor-pointer hover:bg-blue-500/5 transition-all active:scale-[0.98] shadow-sm"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
+                            <Users className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-bold text-foreground">Manage Admins</h3>
+                            <p className="text-[10px] text-muted-foreground">Add or remove admin accounts</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </DialogTrigger>
 
                 <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[480px]">
                   <DialogHeader>
@@ -593,6 +611,8 @@ const Profile = () => {
             )}
           </div>
         )}
+          </div> {/* end right column */}
+        </div> {/* end md:grid two-column wrapper */}
       </main>
 
       <BottomNavigation />

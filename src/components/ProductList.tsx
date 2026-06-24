@@ -38,28 +38,43 @@ const SubcategoryGroup = ({ title, products, onFavoriteToggle }: { title: string
         {isOpen ? <ChevronUp className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" /> : <ChevronDown className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />}
       </button>
       
-      <div className={`grid grid-cols-2 gap-3 items-start transition-all duration-300 origin-top overflow-hidden ${isOpen ? 'opacity-100 max-h-[5000px] mt-2' : 'opacity-0 max-h-0'}`}>
-        {/* Left Column */}
-        <div className="flex flex-col gap-3">
-          {leftColumn.map((product, i) => (
+      <div className={`transition-all duration-300 origin-top overflow-hidden ${isOpen ? 'opacity-100 max-h-[5000px] mt-2' : 'opacity-0 max-h-0'}`}>
+        {/* Desktop / Tablet responsive grid */}
+        <div className="hidden md:grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          {products.map((product, i) => (
             <ProductCard
               key={product.id}
               product={product}
               onFavoriteToggle={onFavoriteToggle}
-              index={i * 2}
+              index={i}
             />
           ))}
         </div>
-        {/* Right Column, staggered push down */}
-        <div className="flex flex-col gap-3">
-          {rightColumn.map((product, i) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onFavoriteToggle={onFavoriteToggle}
-              index={i * 2 + 1}
-            />
-          ))}
+
+        {/* Mobile staggered layout */}
+        <div className="grid md:hidden grid-cols-2 gap-3 items-start">
+          {/* Left Column */}
+          <div className="flex flex-col gap-3">
+            {leftColumn.map((product, i) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onFavoriteToggle={onFavoriteToggle}
+                index={i * 2}
+              />
+            ))}
+          </div>
+          {/* Right Column, staggered push down */}
+          <div className="flex flex-col gap-3">
+            {rightColumn.map((product, i) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onFavoriteToggle={onFavoriteToggle}
+                index={i * 2 + 1}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -145,18 +160,28 @@ export const ProductList: React.FC<ProductListProps> = ({
   const showFlatGrid = isSorted || !['all', 'food', 'drink'].includes(activeCategory);
 
   const renderFlatGrid = (items: typeof sortedProducts) => (
-    <div className="grid grid-cols-2 gap-3 items-start">
-      <div className="flex flex-col gap-3">
-        {items.filter((_, index) => index % 2 === 0).map((product, i) => (
-          <ProductCard key={product.id} product={product} onFavoriteToggle={onFavoriteToggle} index={i * 2} />
+    <>
+      {/* Desktop / Tablet responsive grid */}
+      <div className="hidden md:grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+        {items.map((product, i) => (
+          <ProductCard key={product.id} product={product} onFavoriteToggle={onFavoriteToggle} index={i} />
         ))}
       </div>
-      <div className="flex flex-col gap-3">
-        {items.filter((_, index) => index % 2 === 1).map((product, i) => (
-          <ProductCard key={product.id} product={product} onFavoriteToggle={onFavoriteToggle} index={i * 2 + 1} />
-        ))}
+
+      {/* Mobile staggered layout */}
+      <div className="grid md:hidden grid-cols-2 gap-3 items-start">
+        <div className="flex flex-col gap-3">
+          {items.filter((_, index) => index % 2 === 0).map((product, i) => (
+            <ProductCard key={product.id} product={product} onFavoriteToggle={onFavoriteToggle} index={i * 2} />
+          ))}
+        </div>
+        <div className="flex flex-col gap-3">
+          {items.filter((_, index) => index % 2 === 1).map((product, i) => (
+            <ProductCard key={product.id} product={product} onFavoriteToggle={onFavoriteToggle} index={i * 2 + 1} />
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   );
 
   return (
