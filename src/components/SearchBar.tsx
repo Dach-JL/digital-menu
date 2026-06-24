@@ -23,7 +23,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, onFilterClick })
   };
 
   return (
-    <div className="flex items-center gap-3 w-full mt-5">
+    <div className="flex items-center gap-3 w-full md:max-w-xl md:mx-auto mt-5">
       <form
         onSubmit={handleSubmit}
         className="flex-1 flex items-center gap-3 bg-card border border-border rounded-2xl px-4 py-3 transition-shadow focus-within:shadow-md"
