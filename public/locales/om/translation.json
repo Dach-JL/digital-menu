@@ -94,5 +94,21 @@
   "messages": {
     "loading": "Facaasaa jira...",
     "no_products": "Oomishni barbaadde hin argamne."
+  },
+  "onboarding": {
+    "welcome": "Baga Gara Hootela Rooyaal Nageyaan Dhuftan",
+    "tagline": "Haala nyaata keessanii isiniif haa mijeessinu",
+    "next": "Kan itti aanu",
+    "finish": "Gara Menu Nyaataa Deemi",
+    "choose_language": "Afaan Filadhaa / Choose Language",
+    "choose_language_desc": "Afaan menu ittiin argachuu barbaaddan filadhaa",
+    "choose_category": "Maal ajajuu barbaaddu?",
+    "choose_category_desc": "Nyaata jiru ilaaluuf gita filadhaa",
+    "categories": {
+      "Breakfast": "Ciree (Breakfast)",
+      "Meal": "Dhiyaana/Naanniga (Meal)",
+      "Dinner": "Irbaata (Dinner)",
+      "Dessert": "Mi'aawaa (Dessert)"
+    }
   }
 }

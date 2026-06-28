@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { RoomBadge } from '@/components/RoomBadge';
 import { HeroSection } from '@/components/HeroSection';
 import { SearchBar } from '@/components/SearchBar';
@@ -10,12 +11,16 @@ import { FloatingCallWaiter } from '@/components/FloatingCallWaiter';
 import { BottomNavigation } from '@/components/BottomNavigation';
 import { useUser } from '@/contexts/UserContext';
 import { useServices, useFavorites } from '@/hooks/useQueries';
+import { OnboardingWizard } from '@/components/OnboardingWizard';
 
 const Index = () => {
+  const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
+  const [selectedSubcategory, setSelectedSubcategory] = useState('all');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(initialFilterState);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const { user } = useUser();
 
@@ -24,6 +29,31 @@ const Index = () => {
 
   const isLoading = servicesLoading || (!!user && favoritesLoading && favorites.length === 0);
   const error = servicesError ? (servicesError as Error).message : '';
+
+  useEffect(() => {
+    const room = searchParams.get('room');
+    const savedOnboarding = sessionStorage.getItem('onboarding_completed');
+    
+    // Show onboarding if they scan the QR code (i.e. room param is present in URL)
+    // or if onboarding has never been completed in the current session.
+    if (room || !savedOnboarding) {
+      setShowOnboarding(true);
+    }
+  }, [searchParams]);
+
+  const handleOnboardingComplete = ({ language, subcategory }: { language: string; subcategory: string }) => {
+    sessionStorage.setItem('onboarding_completed', 'true');
+    setShowOnboarding(false);
+    
+    // Automatically set the view to food and filter by chosen subcategory
+    setActiveCategory('food');
+    setSelectedSubcategory(subcategory);
+  };
+
+  const handleCategoryChange = (category: string) => {
+    setActiveCategory(category);
+    setSelectedSubcategory('all');
+  };
 
   // Derive products list from services and favorites
   const products = useMemo(() => {
@@ -45,6 +75,14 @@ const Index = () => {
     }));
   }, [services, favorites]);
 
+  // Filter products by selected subcategory if activeCategory is 'food'
+  const displayedProducts = useMemo(() => {
+    if (activeCategory === 'food' && selectedSubcategory !== 'all') {
+      return products.filter((p) => p.subcategory === selectedSubcategory);
+    }
+    return products;
+  }, [products, activeCategory, selectedSubcategory]);
+
   const handleFavoriteToggleNoop = () => {
     // React Query handles cache invalidation and UI syncing
   };
@@ -58,9 +96,29 @@ const Index = () => {
 
       <main className="flex flex-col w-full flex-1 px-5 md:px-8 lg:px-12 xl:px-16 relative z-10 bg-background rounded-t-[32px] -mt-[40px] pt-6 shadow-[0_-8px_30px_rgba(0,0,0,0.05)]">
         <SearchBar onSearch={setSearchQuery} onFilterClick={() => setIsFilterOpen(true)} />
-        <CategoryTabs onCategoryChange={setActiveCategory} />
+        <CategoryTabs activeCategory={activeCategory} onCategoryChange={handleCategoryChange} />
+        
+        {/* Horizontal scrollable subcategory chips when Food tab is selected */}
+        {activeCategory === 'food' && (
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-3 mt-1 scroll-smooth">
+            {['all', 'Breakfast', 'Meal', 'Dinner', 'Dessert'].map((sub) => (
+              <button
+                key={sub}
+                onClick={() => setSelectedSubcategory(sub)}
+                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all border cursor-pointer active:scale-95 ${
+                  selectedSubcategory === sub 
+                    ? 'bg-foreground border-foreground text-background shadow-md' 
+                    : 'bg-card border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {sub === 'all' ? 'All Food' : sub}
+              </button>
+            ))}
+          </div>
+        )}
+
         <ProductList
-          products={products}
+          products={displayedProducts}
           isLoading={isLoading}
           error={error}
           searchQuery={searchQuery}
@@ -81,6 +139,10 @@ const Index = () => {
         initialFilters={filters}
         onApplyFilters={setFilters}
       />
+
+      {showOnboarding && (
+        <OnboardingWizard onComplete={handleOnboardingComplete} />
+      )}
     </div>
   );
 };

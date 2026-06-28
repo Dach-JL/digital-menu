@@ -94,5 +94,21 @@
   "messages": {
     "loading": "Loading...",
     "no_products": "No products found matching your criteria."
+  },
+  "onboarding": {
+    "welcome": "Welcome to Royal Hotel",
+    "tagline": "Let's customize your dining experience",
+    "next": "Next",
+    "finish": "Go to Menu",
+    "choose_language": "Choose Language / ቋንቋ ይምረጡ",
+    "choose_language_desc": "Select your preferred language for the menu",
+    "choose_category": "What would you like to order?",
+    "choose_category_desc": "Select a category to view the available menu items",
+    "categories": {
+      "Breakfast": "Breakfast",
+      "Meal": "Meal (Lunch/Dinner)",
+      "Dinner": "Dinner",
+      "Dessert": "Dessert"
+    }
   }
 }

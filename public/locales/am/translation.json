@@ -94,5 +94,21 @@
   "messages": {
     "loading": "በመጫን ላይ...",
     "no_products": "ከፍለጋዎ ጋር የሚዛመድ ምርት አልተገኘም።"
+  },
+  "onboarding": {
+    "welcome": "እንኳን ወደ ሮያል ሆቴል በደህና መጡ",
+    "tagline": "የምግብ አሰጣጥዎን እናስተካክል",
+    "next": "ቀጣይ",
+    "finish": "ወደ ዝርዝሩ ይሂዱ",
+    "choose_language": "ቋንቋ ይምረጡ / Choose Language",
+    "choose_language_desc": "የምናሌውን ቋንቋ ይምረጡ",
+    "choose_category": "ምን ማዘዝ ይፈልጋሉ?",
+    "choose_category_desc": "የሚገኙትን ምግቦች ለማየት ምድብ ይምረጡ",
+    "categories": {
+      "Breakfast": "ቁርስ (Breakfast)",
+      "Meal": "ምሳ/ራት (Meal)",
+      "Dinner": "ራት (Dinner)",
+      "Dessert": "ጣፋጭ (Dessert)"
+    }
   }
 }
