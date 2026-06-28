@@ -1,8 +1,4 @@
 export const foodSubcategories = [
-  "Breakfast",
-  "Meal",
-  "Dinner",
-  "Dessert",
   "Appetizers / Starters",
   "Salads (Selata)",
   "Beef Dishes",

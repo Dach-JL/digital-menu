@@ -16,7 +16,10 @@
   },
   "categories": {
     "all": "Hundaa",
-    "food": "Nyaata",
+    "breakfast": "Ciree",
+    "meal": "Dhiyaana/Naanniga",
+    "dinner": "Irbaata",
+    "dessert": "Mi'aawaa",
     "drink": "Dhugaatii",
     "room": "Tajaajila Kutaa"
   },

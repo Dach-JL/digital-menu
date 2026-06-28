@@ -49,9 +49,9 @@ const ROLE_TABS: Record<string, string[]> = {
 
 // Define which service types each role can manage
 const ROLE_SERVICE_TYPES: Record<string, string[]> = {
-  admin: ['food', 'drink', 'room'],
+  admin: ['breakfast', 'meal', 'dinner', 'dessert', 'drink', 'room'],
   admin_room: ['room'],
-  admin_food: ['food', 'drink'],
+  admin_food: ['breakfast', 'meal', 'dinner', 'dessert', 'drink'],
   admin_waiter: [],
 };
 
@@ -77,7 +77,7 @@ const AdminPanel = () => {
 
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [serviceCategory, setServiceCategory] = useState((userRole === 'admin' ? 'food' : allowedServiceTypes[0]) || 'food');
+  const [serviceCategory, setServiceCategory] = useState((userRole === 'admin' ? 'breakfast' : allowedServiceTypes[0]) || 'breakfast');
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [subcategoryFilter, setSubcategoryFilter] = useState("all");
@@ -101,6 +101,13 @@ const AdminPanel = () => {
 
   // Queries
   const { data: services = [], isLoading: servicesLoading, error: servicesError } = useServices(true);
+
+  const normalizedServices = useMemo(() => {
+    return services.map(s => ({
+      ...s,
+      type: s.type === 'food' ? 'meal' : s.type
+    }));
+  }, [services]);
   const { data: orders = [], isLoading: ordersLoading } = useAdminOrders();
   const { data: calls = [], isLoading: callsLoading } = useAdminCalls();
   const { data: feedback = [], isLoading: feedbackLoading, error: feedbackErrorObj } = useAdminFeedback();
@@ -310,18 +317,18 @@ const AdminPanel = () => {
   // Dynamic subcategory options based on services present in current category
   const subcategoryOptions = useMemo(() => {
     const uniqueSubcats = new Set<string>();
-    services.forEach(s => {
+    normalizedServices.forEach(s => {
       const matchCategory = serviceCategory === 'all' || s.type === serviceCategory;
       if (matchCategory && s.subcategory) {
         uniqueSubcats.add(s.subcategory);
       }
     });
     return Array.from(uniqueSubcats).sort();
-  }, [services, serviceCategory]);
+  }, [normalizedServices, serviceCategory]);
 
   // Filter and sort services based on admin role, category, search query, status, subcategory, price, and sorting selections
   const filteredServices = useMemo(() => {
-    let list = [...services];
+    let list = [...normalizedServices];
     
     // 1. Role-based filter
     if (userRole !== 'admin') {
@@ -380,7 +387,7 @@ const AdminPanel = () => {
     });
     
     return list;
-  }, [services, userRole, allowedServiceTypes, serviceCategory, subcategoryFilter, statusFilter, searchQuery, maxPriceFilter, sortBy]);
+  }, [normalizedServices, userRole, allowedServiceTypes, serviceCategory, subcategoryFilter, statusFilter, searchQuery, maxPriceFilter, sortBy]);
 
   const formTitle = useMemo(() => editingService ? t('admin.form_edit_title') : t('admin.form_add_title'), [editingService, t]);
 
@@ -784,7 +791,7 @@ const AdminPanel = () => {
           activeCategory={serviceCategory}
           onCategoryChange={setServiceCategory} 
           hideAll={true}
-          allowedCategories={userRole === 'admin' ? ['food', 'drink', 'room'] : allowedServiceTypes}
+          allowedCategories={userRole === 'admin' ? ['breakfast', 'meal', 'dinner', 'dessert', 'drink', 'room'] : allowedServiceTypes}
         />
       </div>
 
@@ -901,13 +908,16 @@ const AdminPanel = () => {
                       <Select value={formData.type} onValueChange={(value) => { handleInputChange("type", value); handleInputChange("subcategory", ""); }}>
                         <SelectTrigger className="h-12 border-2 focus:ring-zinc-500"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {allowedServiceTypes.includes('food') && <SelectItem value="food">{t('categories.food')}</SelectItem>}
+                          {allowedServiceTypes.includes('breakfast') && <SelectItem value="breakfast">Breakfast</SelectItem>}
+                          {allowedServiceTypes.includes('meal') && <SelectItem value="meal">Meal</SelectItem>}
+                          {allowedServiceTypes.includes('dinner') && <SelectItem value="dinner">Dinner</SelectItem>}
+                          {allowedServiceTypes.includes('dessert') && <SelectItem value="dessert">Dessert</SelectItem>}
                           {allowedServiceTypes.includes('drink') && <SelectItem value="drink">{t('categories.drink')}</SelectItem>}
                           {allowedServiceTypes.includes('room') && <SelectItem value="room">{t('categories.room')}</SelectItem>}
                         </SelectContent>
                       </Select>
                   </div>
-                  {(formData.type === 'food' || formData.type === 'drink') && (
+                  {((['breakfast', 'meal', 'dinner', 'dessert'].includes(formData.type) || formData.type === 'drink')) && (
                     <div className="space-y-2 animate-in fade-in zoom-in-95">
                       <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold font-montserrat">Sub Category</Label>
                       <Select value={formData.subcategory || "Other"} onValueChange={(value) => handleInputChange("subcategory", value)}>
@@ -916,7 +926,7 @@ const AdminPanel = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Other">Other</SelectItem>
-                          {formData.type === 'food' && foodSubcategories.map(sub => (
+                          {['breakfast', 'meal', 'dinner', 'dessert'].includes(formData.type) && foodSubcategories.map(sub => (
                             <SelectItem key={sub} value={sub}>{sub}</SelectItem>
                           ))}
                           {formData.type === 'drink' && drinkSubcategories.map(sub => (
@@ -1000,7 +1010,7 @@ const AdminPanel = () => {
                 )}
 
                  {/* Macros - ONLY for food */}
-                 {formData.type === 'food' && (
+                 {['breakfast', 'meal', 'dinner', 'dessert', 'food'].includes(formData.type) && (
                    <div className="space-y-3 p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border animate-in fade-in zoom-in-95">
                        <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest italic">Nutrition Facts (Optional)</Label>
                        <div className="grid grid-cols-2 gap-3">
@@ -1335,7 +1345,7 @@ const AdminPanel = () => {
   };
 
   const renderQRCodesTab = () => {
-    const roomServices = services.filter(s => s.type === 'room');
+    const roomServices = normalizedServices.filter(s => s.type === 'room');
     const filteredRooms = roomServices.filter(s => {
       if (!qrSearchQuery) return true;
       const roomNum = s.room_number ? String(s.room_number).toLowerCase() : "";
@@ -1415,7 +1425,7 @@ const AdminPanel = () => {
             activeCategory={serviceCategory}
             onCategoryChange={setServiceCategory} 
             hideAll={true}
-            allowedCategories={userRole === 'admin' ? ['food', 'drink', 'room'] : allowedServiceTypes}
+            allowedCategories={userRole === 'admin' ? ['breakfast', 'meal', 'dinner', 'dessert', 'drink', 'room'] : allowedServiceTypes}
           />
         </div>
 
@@ -1756,7 +1766,7 @@ const AdminPanel = () => {
   };
 
   const renderDesktopQRCodesTab = () => {
-    const roomServices = services.filter(s => s.type === 'room');
+    const roomServices = normalizedServices.filter(s => s.type === 'room');
     const filteredRooms = roomServices.filter(s => {
       if (!qrSearchQuery) return true;
       const roomNum = s.room_number ? String(s.room_number).toLowerCase() : "";
@@ -2155,12 +2165,12 @@ const AdminPanel = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {services.filter(s => (s.type === 'food' || s.type === 'drink') && s.is_available).length}
+                    {normalizedServices.filter(s => (['breakfast', 'meal', 'dinner', 'dessert', 'food'].includes(s.type) || s.type === 'drink') && s.is_available).length}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">Available food & drink items</p>
                 </CardContent>
               </Card>
-
+ 
               {/* Active Rooms count */}
               <Card className="hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
@@ -2169,7 +2179,7 @@ const AdminPanel = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {services.filter(s => s.type === 'room' && s.is_available).length}
+                    {normalizedServices.filter(s => s.type === 'room' && s.is_available).length}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">Available active room services</p>
                 </CardContent>

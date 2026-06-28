@@ -16,7 +16,10 @@
   },
   "categories": {
     "all": "ሁሉም",
-    "food": "ምግብ",
+    "breakfast": "ቁርስ",
+    "meal": "ምሳ/ራት",
+    "dinner": "ራት",
+    "dessert": "ጣፋጭ",
     "drink": "መጠጦች",
     "room": "የክፍል አገልግሎት"
   },

@@ -20,7 +20,10 @@ export const CategoryTabs: React.FC<CategoryTabsProps> = ({
 
   let categories = [
     { id: 'all', label: t('categories.all') },
-    { id: 'food', label: t('categories.food') },
+    { id: 'breakfast', label: t('categories.breakfast') },
+    { id: 'meal', label: t('categories.meal') },
+    { id: 'dinner', label: t('categories.dinner') },
+    { id: 'dessert', label: t('categories.dessert') },
     { id: 'drink', label: t('categories.drink') },
     { id: 'room', label: t('categories.room') }
   ];

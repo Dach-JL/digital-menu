@@ -151,13 +151,17 @@ export const ProductList: React.FC<ProductListProps> = ({
     return <div className="text-center py-8 text-red-500">{error}</div>;
 
   let subcategoriesToDisplay: string[] = [];
-  if (activeCategory === 'food') subcategoriesToDisplay = [...foodSubcategories, "Other"];
-  else if (activeCategory === 'drink') subcategoriesToDisplay = [...drinkSubcategories, "Other"];
-  else if (activeCategory === 'all') subcategoriesToDisplay = [...foodSubcategories, ...drinkSubcategories, "Other"];
+  if (['food', 'breakfast', 'meal', 'dinner', 'dessert'].includes(activeCategory)) {
+    subcategoriesToDisplay = [...foodSubcategories, "Other"];
+  } else if (activeCategory === 'drink') {
+    subcategoriesToDisplay = [...drinkSubcategories, "Other"];
+  } else if (activeCategory === 'all') {
+    subcategoriesToDisplay = [...foodSubcategories, ...drinkSubcategories, "Other"];
+  }
 
   // When price sort is active, render flat grid so the sort order is visible
   // (subcategory groups override sort order and would hide any changes)
-  const showFlatGrid = isSorted || !['all', 'food', 'drink'].includes(activeCategory);
+  const showFlatGrid = isSorted || !['all', 'food', 'breakfast', 'meal', 'dinner', 'dessert', 'drink'].includes(activeCategory);
 
   const renderFlatGrid = (items: typeof sortedProducts) => (
     <>

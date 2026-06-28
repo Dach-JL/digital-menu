@@ -45,9 +45,9 @@ const Index = () => {
     sessionStorage.setItem('onboarding_completed', 'true');
     setShowOnboarding(false);
     
-    // Automatically set the view to food and filter by chosen subcategory
-    setActiveCategory('food');
-    setSelectedSubcategory(subcategory);
+    // Automatically set the active category tab to the selected onboarding option
+    setActiveCategory(subcategory.toLowerCase());
+    setSelectedSubcategory('all');
   };
 
   const handleCategoryChange = (category: string) => {
@@ -64,6 +64,8 @@ const Index = () => {
       ...item,
       id: String(item.id),
       price: item.price,
+      // Map old legacy 'food' type to 'meal' for backwards compatibility
+      type: item.type === 'food' ? 'meal' : item.type,
       rating: 5,
       reviewCount: "0",
       image: item.image_url || "/placeholder.svg",
@@ -75,10 +77,10 @@ const Index = () => {
     }));
   }, [services, favorites]);
 
-  // Filter products by selected subcategory if activeCategory is 'food'
+  // Filter products by selected subcategory (food type) if activeCategory is one of the food categories
   const displayedProducts = useMemo(() => {
-    if (activeCategory === 'food' && selectedSubcategory !== 'all') {
-      return products.filter((p) => p.subcategory === selectedSubcategory);
+    if (['breakfast', 'meal', 'dinner', 'dessert'].includes(activeCategory) && selectedSubcategory !== 'all') {
+      return products.filter((p) => (p.subcategory || 'Other') === selectedSubcategory);
     }
     return products;
   }, [products, activeCategory, selectedSubcategory]);
@@ -98,22 +100,25 @@ const Index = () => {
         <SearchBar onSearch={setSearchQuery} onFilterClick={() => setIsFilterOpen(true)} />
         <CategoryTabs activeCategory={activeCategory} onCategoryChange={handleCategoryChange} />
         
-        {/* Horizontal scrollable subcategory chips when Food tab is selected */}
-        {activeCategory === 'food' && (
+        {/* Horizontal scrollable subcategory chips when a Food Category is selected */}
+        {['breakfast', 'meal', 'dinner', 'dessert'].includes(activeCategory) && (
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-3 mt-1 scroll-smooth">
-            {['all', 'Breakfast', 'Meal', 'Dinner', 'Dessert'].map((sub) => (
-              <button
-                key={sub}
-                onClick={() => setSelectedSubcategory(sub)}
-                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all border cursor-pointer active:scale-95 ${
-                  selectedSubcategory === sub 
-                    ? 'bg-foreground border-foreground text-background shadow-md' 
-                    : 'bg-card border-border text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {sub === 'all' ? 'All Food' : sub}
-              </button>
-            ))}
+            {['all', ...Array.from(new Set(products.filter(p => p.type === activeCategory).map(p => p.subcategory || 'Other')))].map((sub) => {
+              if (!sub) return null;
+              return (
+                <button
+                  key={sub}
+                  onClick={() => setSelectedSubcategory(sub)}
+                  className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all border cursor-pointer active:scale-95 ${
+                    selectedSubcategory === sub 
+                      ? 'bg-foreground border-foreground text-background shadow-md' 
+                      : 'bg-card border-border text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {sub === 'all' ? 'All' : sub}
+                </button>
+              );
+            })}
           </div>
         )}
 

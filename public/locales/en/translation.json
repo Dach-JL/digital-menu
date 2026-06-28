@@ -16,7 +16,10 @@
   },
   "categories": {
     "all": "All",
-    "food": "Food",
+    "breakfast": "Breakfast",
+    "meal": "Meal",
+    "dinner": "Dinner",
+    "dessert": "Dessert",
     "drink": "Drinks",
     "room": "Room Service"
   },
