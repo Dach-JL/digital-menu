@@ -73,19 +73,23 @@ export const CategoryTabs: React.FC<CategoryTabsProps> = ({
   };
 
   return (
-    <div className="flex items-end justify-between w-full mt-3 mb-4 border-b border-border/40 pb-1">
+    <div className="flex flex-col md:flex-row md:items-end justify-between w-full mt-3 mb-4 border-b border-border/40 pb-1 gap-2.5 md:gap-0">
       <h2 className="text-[26px] font-bold text-foreground leading-none tracking-tight">Menu</h2>
       
-      <nav ref={navRef} className="relative flex items-center gap-[14px]" role="tablist">
+      <nav 
+        ref={navRef} 
+        className="relative flex items-center gap-[14px] overflow-x-auto no-scrollbar max-w-full pb-1 whitespace-nowrap scroll-smooth" 
+        role="tablist"
+      >
         {categories.map((category) => {
           const isActive = activeCategory === category.id;
           return (
             <button
               key={category.id}
               onClick={() => handleCategoryClick(category.id)}
-              className={`relative pb-1 text-[13px] font-medium transition-colors duration-200 z-10 ${
+              className={`relative pb-1 text-[13px] font-medium transition-colors duration-200 z-10 shrink-0 ${
                 isActive
-                  ? 'text-foreground'
+                  ? 'text-foreground font-semibold'
                   : 'text-muted-foreground hover:text-foreground/80'
               }`}
               role="tab"
