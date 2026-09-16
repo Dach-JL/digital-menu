@@ -43,5 +43,8 @@ export const db = new Proxy({} as ReturnType<typeof drizzle>, {
 export const sql = new Proxy((() => {}) as any, {
   apply(_target, thisArg, argArray) {
     return Reflect.apply(getSql() as any, thisArg, argArray);
+  },
+  get(_target, prop) {
+    return (getSql() as any)[prop];
   }
 });
