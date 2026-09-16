@@ -29,3 +29,8 @@ dist-ssr
 *.sw?
 .vercel
 .env*
+**/.env*
+.vite/
+**/.vite/
+**/node_modules/
+**/dist/
