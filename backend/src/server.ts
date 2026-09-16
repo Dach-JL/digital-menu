@@ -66,12 +66,38 @@ for (const { path: routePath, router } of routes) {
   app.use(`/api/${routePath}.php`, router);
 }
 
+// Root status route
+app.get('/', (req, res) => {
+  res.json({
+    status: 'online',
+    message: 'Digital Menu Backend API is operational',
+    health: '/health',
+    endpoints: [
+      '/api/services',
+      '/api/orders',
+      '/api/calls',
+      '/api/feedback',
+      '/api/favorites',
+      '/api/users'
+    ]
+  });
+});
+
 // 404 Handler for unrecognized /api routes
 app.all('/api/*', (req, res) => {
   res.status(404).json({ error: `API route ${req.originalUrl} not found` });
 });
 
-// Auto-run migrations and start server
+// Global error handling middleware
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Unhandled API Error:', err);
+  res.status(500).json({
+    error: err?.message || 'Internal Server Error',
+    tip: !process.env.DATABASE_URL ? 'Make sure DATABASE_URL is set in Vercel Project Settings > Environment Variables.' : undefined
+  });
+});
+
+// Auto-run migrations and start server for standalone/local development
 async function startServer() {
   try {
     await runMigrations();
@@ -87,13 +113,17 @@ async function startServer() {
   server.on('error', (err: any) => {
     if (err.code === 'EADDRINUSE') {
       console.error(`⚠️ Port ${PORT} is currently in use by another process.`);
-      console.error(`👉 Please terminate any existing server process running on port ${PORT} (e.g. your previous terminal) and restart.`);
+      console.error(`👉 Please terminate any existing server process running on port ${PORT} and restart.`);
     } else {
       console.error('Server error:', err);
     }
   });
 }
 
-startServer();
+// In Vercel serverless environment, export app without calling app.listen()
+const isVercel = process.env.VERCEL === '1' || process.env.NOW_REGION !== undefined;
+if (!isVercel) {
+  startServer();
+}
 
 export default app;

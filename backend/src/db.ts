@@ -12,15 +12,36 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-const connectionString = process.env.DATABASE_URL || '';
+let _sql: NeonQueryFunction<false, false> | null = null;
+let _db: ReturnType<typeof drizzle> | null = null;
 
-if (!connectionString) {
-  console.warn('⚠️ DATABASE_URL environment variable is not set!');
+export function getSql(): NeonQueryFunction<false, false> {
+  if (!_sql) {
+    const conn = process.env.DATABASE_URL;
+    if (!conn) {
+      throw new Error('DATABASE_URL environment variable is missing. Please configure DATABASE_URL in Vercel Project Settings > Environment Variables.');
+    }
+    _sql = neon(conn);
+  }
+  return _sql;
 }
-
-export const sql: NeonQueryFunction<false, false> = neon(connectionString);
-export const db = drizzle(sql, { schema });
 
 export function getDb() {
-  return db;
+  if (!_db) {
+    _db = drizzle(getSql(), { schema });
+  }
+  return _db;
 }
+
+// Proxies so existing imports like `db.select()...` and `sql\`...\`` continue to work seamlessly
+export const db = new Proxy({} as ReturnType<typeof drizzle>, {
+  get(_target, prop) {
+    return (getDb() as any)[prop];
+  }
+});
+
+export const sql = new Proxy((() => {}) as any, {
+  apply(_target, thisArg, argArray) {
+    return Reflect.apply(getSql() as any, thisArg, argArray);
+  }
+});
