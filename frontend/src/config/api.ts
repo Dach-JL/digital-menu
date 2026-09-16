@@ -5,8 +5,11 @@
 
 const isDev = import.meta.env.DEV;
 
-// In dev mode, point to Node.js local API server using the current hostname or VITE_API_URL.
-export const API_BASE = import.meta.env.VITE_API_URL || (isDev ? `http://${window.location.hostname}:8000/api` : '/api');
+// In dev mode, point to local server. In production, default to backend Vercel URL.
+export const API_BASE = (
+  import.meta.env.VITE_API_URL ||
+  (isDev ? `http://${window.location.hostname}:8000/api` : 'https://backend-jet-eta-93.vercel.app/api')
+).replace(/\/+$/, '');
 
 // For uploaded images: serve them from the frontend origin (since they are in the public/ folder)
 export const UPLOADS_BASE = '';
