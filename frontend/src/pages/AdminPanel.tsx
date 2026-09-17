@@ -1387,7 +1387,8 @@ const AdminPanel = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredRooms.map((room) => {
               const roomIdentifier = room.room_number || room.name_en;
-              const qrUrl = `https://royalhotelmenu.vercel.app/?mode=room&room=${encodeURIComponent(roomIdentifier)}`;
+              const baseUrl = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : 'https://frontend-indol-alpha-29.vercel.app';
+              const qrUrl = `${baseUrl}/?mode=room&room=${encodeURIComponent(roomIdentifier)}`;
               return (
                 <div key={room.id} className="bg-card border p-6 rounded-xl flex flex-col items-center text-center shadow-sm relative overflow-hidden group">
                   <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1807,7 +1808,8 @@ const AdminPanel = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredRooms.map((room) => {
               const roomIdentifier = room.room_number || room.name_en;
-              const qrUrl = `https://royalhotelmenu.vercel.app/?mode=room&room=${encodeURIComponent(roomIdentifier)}`;
+              const baseUrl = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : 'https://frontend-indol-alpha-29.vercel.app';
+              const qrUrl = `${baseUrl}/?mode=room&room=${encodeURIComponent(roomIdentifier)}`;
               return (
                 <div key={room.id} className="bg-card border p-6 rounded-xl flex flex-col items-center text-center shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
                   <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
