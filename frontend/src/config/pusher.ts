@@ -4,7 +4,7 @@ import Pusher from 'pusher-js';
 Pusher.logToConsole = true;
 
 // Pusher public key and cluster config
-const PUSHER_KEY = import.meta.env.VITE_PUSHER_KEY || '0a0f8de2b39ee7774e0b';
+const PUSHER_KEY = import.meta.env.VITE_PUSHER_KEY || '96746325bdd803e483f4';
 const PUSHER_CLUSTER = import.meta.env.VITE_PUSHER_CLUSTER || 'mt1';
 
 // Initialize Pusher Client

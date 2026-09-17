@@ -59,9 +59,13 @@ function cleanPayload(data: any): any {
 export async function triggerPusherEvent(channel: string, event: string, data: any): Promise<void> {
   try {
     const pusher = getPusher();
-    if (!pusher) return;
+    if (!pusher) {
+      console.warn(`⚠️ Pusher is not configured. Skipping event [${event}] on [${channel}].`);
+      return;
+    }
     const cleanedData = cleanPayload(data);
     await pusher.trigger(channel, event, cleanedData);
+    console.log(`📡 Pusher broadcast: [${channel}] -> [${event}]`);
   } catch (error) {
     console.error(`Failed to trigger Pusher event [${event}] on channel [${channel}]:`, error);
   }
